@@ -14,8 +14,12 @@
 #include <vector>
 #include <set>
 #include <sstream>
-#include <SFML/System/InputStream.hpp>
-#include <boost/filesystem/path.hpp>
+#include "compat/input_stream.hpp"
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/path.hpp>
+#else
+	#include <filesystem>
+#endif
 #include "gfx/gfxsheets.hpp"
 
 class cScenario;

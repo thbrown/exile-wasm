@@ -12,8 +12,8 @@
 /// @file
 /// Dialog-related classes and types.
 
-#include <SFML/Graphics.hpp>
-#include <SFML/Window/Event.hpp>
+#include "compat/graphics.hpp"
+#include "compat/event.hpp"
 
 #include <string>
 #include <map>
@@ -26,9 +26,17 @@
 #include "dialogxml/keycodes.hpp"
 #include "dialogxml/dialogs/dlogevt.hpp"
 #include "location.hpp"
-#include <boost/any.hpp>
-#include <boost/iterator/iterator_facade.hpp>
-#include <boost/filesystem/path.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/any.hpp>
+	#include <boost/iterator/iterator_facade.hpp>
+	#include <boost/filesystem/path.hpp>
+	namespace any_ns = boost;
+#else
+	#include <any>
+	#include <filesystem>
+	namespace any_ns = std;
+	// iterator_facade not needed for web - disable if used
+#endif
 #include "tools/prefs.hpp"
 #include "tools/framerate_limiter.hpp"
 
@@ -134,10 +142,10 @@ public:
 	void runWithHelp(short help1, short help2, bool help_forced = false);
 	/// Get the result of the dialog.
 	/// @tparam type The result type.
-	/// @throw boost::bad_any_cast if the provided result type is different from the type set by setResult().
+	/// @throw any_ns::bad_any_cast if the provided result type is different from the type set by setResult().
 	/// @return The dialog's result.
 	template<typename type> type getResult() const {
-		return boost::any_cast<type>(result);
+		return any_ns::any_cast<type>(result);
 	}
 	/// Check if the dialog has a result.
 	/// @return true if setResult() was called, otherwise false.
@@ -289,7 +297,7 @@ private:
 	void process_click(location where, eKeyMod mods, cFramerateLimiter& fps_limiter);
 	bool dialogNotToast, didAccept;
 	rectangle winRect;
-	boost::any result;
+	any_ns::any result;
 	std::string fname;
 	std::string defaultButton;
 	std::string escapeButton;

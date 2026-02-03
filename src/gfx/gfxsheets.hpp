@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 #include <memory>
-#include <SFML/Graphics/Texture.hpp>
+#include "compat/texture.hpp"
 #include "location.hpp"
 
 static const pic_num_t NO_PIC = -1;

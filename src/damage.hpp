@@ -10,7 +10,13 @@
 #define BoE_DATA_DAMAGE_HPP
 
 #include <limits>
-#include <boost/optional.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/optional.hpp>
+	namespace opt = boost;
+#else
+	#include <optional>
+	namespace opt = std;
+#endif
 #include <set>
 
 enum class eDamageType {
@@ -64,7 +70,7 @@ struct status_info_t {
 		int icon, lo, hi;
 		special_icon_t(int p, int m, int M = std::numeric_limits<int>::max()) : icon(p), lo(m), hi(M) {}
 	};
-	boost::optional<special_icon_t> special;
+	opt::optional<special_icon_t> special;
 	status_info_t() = default;
 	status_info_t(bool neg, int p1, int p2 = -1) : isNegative(neg), icon(p1), negIcon(p2) {}
 	status_info_t(bool neg, int p1, int p2, special_icon_t spec) : isNegative(neg), icon(p1), negIcon(p2), special(spec) {}

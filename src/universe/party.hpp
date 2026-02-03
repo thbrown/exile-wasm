@@ -15,7 +15,9 @@
 #include <map>
 #include <set>
 
-#include <boost/iterator/indirect_iterator.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/iterator/indirect_iterator.hpp>
+#endif
 
 #include "scenario/vehicle.hpp"
 #include "population.hpp"
@@ -218,23 +220,27 @@ public:
 	
 	bool sd_legit(short a, short b) const;
 	void wipe_sdfs();
-	
+
+#ifndef __EMSCRIPTEN__
+	// Iterator support (requires Boost)
+	// For web builds, access adven array directly
 	auto begin() -> boost::indirect_iterator<decltype(adven)::iterator> {
 		return boost::make_indirect_iterator(adven.begin());
 	}
-	
+
 	auto end() -> boost::indirect_iterator<decltype(adven)::iterator> {
 		return boost::make_indirect_iterator(adven.end());
 	}
-	
+
 	auto begin() const -> boost::indirect_iterator<decltype(adven)::const_iterator> {
 		return boost::make_indirect_iterator(adven.begin());
 	}
-	
+
 	auto end() const -> boost::indirect_iterator<decltype(adven)::const_iterator> {
 		return boost::make_indirect_iterator(adven.end());
 	}
-	
+#endif
+
 	typedef std::vector<cEncNote>::iterator encIter;
 	typedef std::vector<cJournal>::iterator journalIter;
 	typedef std::vector<cConvers>::iterator talkIter;

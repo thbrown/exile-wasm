@@ -10,7 +10,7 @@
 
 #include <cmath>
 #include <climits>
-#include <SFML/System/Time.hpp>
+#include "compat/time.hpp"
 #include <random>
 
 // Make sure min and max macros are not defined.

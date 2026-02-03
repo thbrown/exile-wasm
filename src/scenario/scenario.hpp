@@ -11,8 +11,14 @@
 
 #include <iosfwd>
 #include <array>
-#include <boost/filesystem/path.hpp>
-#include <fmt/ostream.h>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/path.hpp>
+#else
+	#include <filesystem>
+#endif
+#ifndef __EMSCRIPTEN__
+	#include <fmt/ostream.h>
+#endif
 #include "monster.hpp"
 // For reasons unknown, putting terrain above monster breaks the tests build in MSVC 2013
 #include "terrain.hpp"
@@ -40,7 +46,9 @@ struct scenario_header_flags {
 
 enum eContentRating {G, PG, R, NC17};
 
-template<> struct fmt::formatter<eContentRating> : ostream_formatter {};
+#ifndef __EMSCRIPTEN__
+	template<> struct fmt::formatter<eContentRating> : ostream_formatter {};
+#endif
 
 // Used for finding town entrances in the outdoors
 struct town_entrance_t {

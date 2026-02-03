@@ -9,8 +9,12 @@
 #ifndef BOE_LOCATION_H
 #define BOE_LOCATION_H
 
+#ifdef USE_SFML
 #include <SFML/Graphics.hpp>
+#endif
+
 #include <string>
+#include <vector>
 #include <iosfwd>
 
 enum eDirection {
@@ -29,16 +33,20 @@ struct rectangle;
 
 struct location {
 	int x,y;
-	
+
 	location();
 	location(int x, int y);
+#ifdef USE_SFML
 	template<typename T>
 	location(sf::Vector2<T> other) : location(other.x, other.y) {}
+#endif
 	bool in(rectangle r) const;
+#ifdef USE_SFML
 	template<typename T>
 	operator typename sf::template Vector2<T>() {
 		return sf::Vector2<T>(x,y);
 	}
+#endif
 };
 
 struct loc_compare {
@@ -67,16 +75,18 @@ public:
 
 struct rectangle {
 	int top, left, bottom, right;
-	
+
 	rectangle();
 	rectangle(location tl, location br);
 	rectangle(int t, int l, int b, int r);
+#ifdef USE_SFML
 	explicit rectangle(const sf::Texture& texture);
 	explicit rectangle(const sf::RenderTarget& texture);
 	template<typename T>
 	rectangle(sf::Rect<T> other) : rectangle(other.top, other.left, other.top + other.height, other.left + other.width) {}
 	template<typename T>
 	rectangle(sf::Vector2<T> size) : rectangle(0, 0, size.y, size.x) {}
+#endif
 	rectangle_size_delegate width();
 	rectangle_size_delegate height();
 	const rectangle_size_delegate width() const;
@@ -93,14 +103,18 @@ struct rectangle {
 	void offset(location diff);
 	void move_to(int x, int y);
 	void move_to(location loc);
+#ifdef USE_SFML
 	template<typename T>
 	void offset(sf::Vector2<T> diff) {offset(diff.x,diff.y);}
+#endif
 	void inset(int dh, int dv);
 	rectangle& operator&=(rectangle other);
+#ifdef USE_SFML
 	template<typename T>
 	operator typename sf::template Rect<T>() {
 		return sf::Rect<T>(left, top, width(), height());
 	}
+#endif
 };
 
 struct info_rect_t : public rectangle {

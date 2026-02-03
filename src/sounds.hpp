@@ -9,7 +9,7 @@
 #ifndef _SOUNDTOOL_H
 #define _SOUNDTOOL_H
 
-#include <SFML/Audio.hpp>
+#include "compat/audio.hpp"
 #include <string>
 
 void init_snd_tool();

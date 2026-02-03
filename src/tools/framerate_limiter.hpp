@@ -2,7 +2,8 @@
 #ifndef FRAMERATE_LIMITER_HPP
 #define FRAMERATE_LIMITER_HPP
 
-#include <SFML/Graphics.hpp>
+#include "compat/graphics.hpp"
+#include "compat/time.hpp"
 
 class cFramerateLimiter {
 public:

@@ -15,7 +15,16 @@
 #include <istream>
 #include <ostream>
 #include <memory>
-#include <boost/optional.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/optional.hpp>
+	namespace opt = boost;
+	// Alias boost::none to nullopt for consistency
+	constexpr auto nullopt = boost::none;
+#else
+	#include <optional>
+	namespace opt = std;
+	using std::nullopt;
+#endif
 #include "tools/vector2d.hpp"
 
 namespace detail {
@@ -165,17 +174,17 @@ public:
 	}
 	
 	template<typename T>
-	size_t extract(size_t i, boost::optional<T>& to) const {
+	size_t extract(size_t i, opt::optional<T>& to) const {
 		if(i < values.size()) {
 			return extract(i, *to);
 		} else {
-			to = boost::none;
+			to = opt::nullopt;
 			return 0;
 		}
 	}
-	
+
 	template<typename T>
-	size_t encode(size_t i, const boost::optional<T>& from) {
+	size_t encode(size_t i, const opt::optional<T>& from) {
 		return from ? encode(i, *from) : 0;
 	}
 	

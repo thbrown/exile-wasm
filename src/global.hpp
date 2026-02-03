@@ -32,9 +32,18 @@ const short pc_width = 590, pc_height = 440;
 const short scen_width = 584, scen_height = 435;
 
 // A convenient alias
-namespace boost { namespace filesystem {} namespace process {}}
-namespace fs = boost::filesystem;
-namespace bp = boost::process;
+#ifdef __EMSCRIPTEN__
+	// Web build: use C++17 std::filesystem instead of Boost
+	#include <filesystem>
+	namespace fs = std::filesystem;
+	// boost::process not available on web
+	namespace bp {}
+#else
+	// Desktop build: use Boost
+	namespace boost { namespace filesystem {} namespace process {}}
+	namespace fs = boost::filesystem;
+	namespace bp = boost::process;
+#endif
 
 // Limits
 const int MAX_GOLD = 30000;

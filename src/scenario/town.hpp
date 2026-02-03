@@ -12,7 +12,14 @@
 #include <vector>
 #include <iosfwd>
 #include <array>
-#include <boost/dynamic_bitset.hpp>
+#include "compat/dynamic_bitset.hpp"
+#ifndef __EMSCRIPTEN__
+	#include <boost/optional.hpp>
+	namespace opt = boost;
+#else
+	#include <optional>
+	namespace opt = std;
+#endif
 #include "location.hpp"
 #include "special.hpp"
 #include "monster.hpp"
@@ -197,7 +204,7 @@ struct town_advanced_t {
 	bool defy_scrying;
 	bool strong_barriers;
 	bool has_tavern;
-	boost::optional<rectangle> store_item_rect;
+	opt::optional<rectangle> store_item_rect;
 
 	bool operator==(const town_advanced_t& other) const {
 		for(int i = 0; i < exits.size(); ++i){

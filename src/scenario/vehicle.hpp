@@ -11,6 +11,7 @@
 
 #include <iosfwd>
 #include <string>
+#include "global.hpp"
 #include "location.hpp"
 
 namespace legacy {

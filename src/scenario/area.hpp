@@ -11,7 +11,7 @@
 
 #include <vector>
 #include <string>
-#include <boost/dynamic_bitset.hpp>
+#include "compat/dynamic_bitset.hpp"
 
 #include "tools/vector2d.hpp"
 #include "location.hpp"

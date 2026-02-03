@@ -13,7 +13,11 @@
 #include <memory>
 #include <set>
 #include <array>
-#include <boost/filesystem/path.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/path.hpp>
+#else
+	#include <filesystem>
+#endif
 #include "party.hpp"
 #include "population.hpp"
 #include "scenario/item.hpp"
