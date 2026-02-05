@@ -14,8 +14,10 @@
 	#include <emscripten.h>
 	#include "compat/texture.hpp"
 	#include "compat/event.hpp"
+	#include "compat/draw_dedup.hpp"
 	#include <string>
 	#include <vector>
+	#include <iostream>
 
 	// Forward declare location for RenderWindow::mapPixelToCoords overload
 	struct location;
@@ -520,6 +522,30 @@
 			void clear(const Color& color = Color(0, 0, 0)) override {
 				clearColor_ = color;
 				#ifdef __EMSCRIPTEN__
+				static int clear_count = 0;
+				static int last_log = 0;
+				static bool size_set = false;
+				clear_count++;
+
+				// Set canvas size once to ensure all sprites are visible
+				if(!size_set) {
+					EM_ASM({
+						var canvas = Module.canvas;
+						var oldW = canvas.width;
+						var oldH = canvas.height;
+						canvas.width = 800;
+						canvas.height = 600;
+						console.log('Canvas resized from ' + oldW + 'x' + oldH + ' to 800x600');
+					});
+					size_set = true;
+				}
+
+				if(clear_count - last_log >= 60) { // Log once per second
+					std::cout << "clear() called " << clear_count << " times, color=("
+					          << (int)color.r << "," << (int)color.g << "," << (int)color.b << ")" << std::endl;
+					last_log = clear_count;
+				}
+				draw_dedup::newFrame(); // Reset draw tracking for new frame
 				EM_ASM({
 					var canvas = Module.canvas;
 					if(canvas && canvas.getContext) {
@@ -538,7 +564,120 @@
 				#endif
 			}
 
-			void draw(const Drawable& drawable, const RenderStates& states = RenderStates()) override {}
+			void draw(const Drawable& drawable, const RenderStates& states = RenderStates()) override {
+				#ifdef __EMSCRIPTEN__
+				const Sprite* sprite = dynamic_cast<const Sprite*>(&drawable);
+				if(sprite) {
+					auto pos = sprite->getPosition();
+					auto texRect = sprite->getTextureRect();
+					auto scale = sprite->getScale();
+					auto color = sprite->getColor();
+					const Texture* tex = sprite->getTexture();
+
+					float w = texRect.width * scale.x;
+					float h = texRect.height * scale.y;
+
+					// Deduplication disabled - let all sprites through
+					// Log every sprite draw for debugging
+					static int total_draws = 0;
+					if(total_draws < 20) {
+						std::cout << "DRAW #" << total_draws << ": pos=(" << pos.x << "," << pos.y << ") "
+						          << "texRect=(" << texRect.left << "," << texRect.top << ","
+						          << texRect.width << "," << texRect.height << ") "
+						          << "scale=(" << scale.x << "," << scale.y << ") "
+						          << "dest=(" << w << "x" << h << ")";
+						if(tex) std::cout << " tex=" << tex->getFilename();
+						std::cout << std::endl;
+					}
+					total_draws++;
+
+					// Draw using texture if available, otherwise colored rect
+					if(tex && !tex->getFilename().empty()) {
+						EM_ASM_({
+							var ctx = Module.canvas.getContext('2d');
+							var filename = UTF8ToString($0);
+
+							// Load texture if not cached
+							if (!Module.textureCache) {
+								Module.textureCache = {};
+							}
+
+							if (!Module.textureCache[filename]) {
+								// Try to load from VFS
+								try {
+									var data = FS.readFile(filename);
+									var blob = new Blob([data]);
+									var url = URL.createObjectURL(blob);
+									var img = new Image();
+									img.src = url;
+									Module.textureCache[filename] = img;
+									console.log('Loaded texture on-demand: ' + filename);
+								} catch(e) {
+									console.error('Failed to load texture: ' + filename + ' - ' + e);
+									// Draw red error rect
+									ctx.fillStyle = 'red';
+									ctx.fillRect($1, $2, $7, $8);
+									return;
+								}
+							}
+
+							var img = Module.textureCache[filename];
+							if (img.complete && img.naturalWidth > 0) {
+								// Use texture rect exactly as specified - game code has correct pixel coordinates
+								ctx.drawImage(img, $3, $4, $5, $6, $1, $2, $7, $8);
+							} else {
+								ctx.fillStyle = 'yellow';
+								ctx.fillRect($1, $2, $7, $8);
+								ctx.strokeStyle = 'black';
+								ctx.strokeRect($1, $2, $7, $8);
+							}
+						}, tex->getFilename().c_str(), pos.x, pos.y,
+						   texRect.left, texRect.top, texRect.width, texRect.height,
+						   w, h);
+					} else {
+						// No texture - draw colored rect for debugging
+						EM_ASM_({
+							var ctx = Module.canvas.getContext('2d');
+							ctx.fillStyle = 'magenta';
+							ctx.fillRect($0, $1, $2, $3);
+							ctx.strokeStyle = 'white';
+							ctx.lineWidth = 1;
+							ctx.strokeRect($0, $1, $2, $3);
+						}, pos.x, pos.y, w, h);
+					}
+					return;
+				}
+
+				// Handle Text rendering
+				const Text* text = dynamic_cast<const Text*>(&drawable);
+				if(text) {
+					auto pos = text->getPosition();
+					auto str = text->getString();
+					auto size = text->getCharacterSize();
+					auto color = text->getFillColor();
+
+					if(str.empty()) return;
+
+					EM_ASM_({
+						var ctx = Module.canvas.getContext('2d');
+						var text = UTF8ToString($0);
+						var x = $1;
+						var y = $2;
+						var size = $3;
+						var r = $4;
+						var g = $5;
+						var b = $6;
+						var a = $7;
+
+						ctx.font = size + 'px sans-serif';
+						ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (a/255) + ')';
+						ctx.textBaseline = 'top';
+						ctx.fillText(text, x, y);
+					}, str.c_str(), pos.x, pos.y, size, color.r, color.g, color.b, color.a);
+					return;
+				}
+				#endif
+			}
 
 			void setView(const View& view) override {}
 			const View& getView() const override { static View v; return v; }

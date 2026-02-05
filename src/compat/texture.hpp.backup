@@ -249,30 +249,7 @@
 				return create(1, 1);
 			}
 
-			ImageSize getSize() const {
-				#ifdef __EMSCRIPTEN__
-				// Query actual dimensions from JavaScript (two separate calls to avoid BigInt)
-				unsigned int w = EM_ASM_INT({
-					var filename = UTF8ToString($0);
-					if (Module.textureDimensions && Module.textureDimensions[filename]) {
-						return Module.textureDimensions[filename].width;
-					}
-					return $1;
-				}, filename_.c_str(), width_);
-
-				unsigned int h = EM_ASM_INT({
-					var filename = UTF8ToString($0);
-					if (Module.textureDimensions && Module.textureDimensions[filename]) {
-						return Module.textureDimensions[filename].height;
-					}
-					return $1;
-				}, filename_.c_str(), height_);
-
-				return ImageSize{w, h};
-				#else
-				return ImageSize{width_, height_};
-				#endif
-			}
+			ImageSize getSize() const { return ImageSize{width_, height_}; }
 			unsigned int getWidth() const { return width_; }
 			unsigned int getHeight() const { return height_; }
 

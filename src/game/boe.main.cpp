@@ -6,6 +6,7 @@
 	#include "cli.hpp"
 #else
 	#include <emscripten.h>
+	#include "compat/draw_dedup.hpp"
 #endif
 
 #ifndef __EMSCRIPTEN__
@@ -1401,6 +1402,9 @@ static void main_loop_iteration() {
 		std::cout << "Main loop started, rendering..." << std::endl;
 	}
 	frame_count++;
+
+	// Reset draw deduplication for this frame
+	draw_dedup::newFrame();
 #endif
 #else
 // Helper function for desktop builds
