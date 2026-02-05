@@ -134,6 +134,11 @@ public:
 private:
 	std::array<std::unique_ptr<cPlayer>,6> adven;
 public:
+#ifdef __EMSCRIPTEN__
+	// Web build: provide accessor since iterators are disabled
+	auto& get_party_members() { return adven; }
+	const auto& get_party_members() const { return adven; }
+#endif
 	std::array<vector2d<unsigned short>, 4> setup; // formerly setup_save_type
 	std::map<short, std::vector<cItem>> stored_items; // formerly stored_items_list_type
 	
@@ -223,7 +228,6 @@ public:
 
 #ifndef __EMSCRIPTEN__
 	// Iterator support (requires Boost)
-	// For web builds, access adven array directly
 	auto begin() -> boost::indirect_iterator<decltype(adven)::iterator> {
 		return boost::make_indirect_iterator(adven.begin());
 	}
@@ -239,6 +243,42 @@ public:
 	auto end() const -> boost::indirect_iterator<decltype(adven)::const_iterator> {
 		return boost::make_indirect_iterator(adven.end());
 	}
+#else
+	// Web build: Simple dereferencing iterator
+	template<typename PtrIter>
+	struct DerefIterator {
+		PtrIter it;
+		using value_type = typename std::iterator_traits<PtrIter>::value_type::element_type;
+		using reference = value_type&;
+		using pointer = value_type*;
+		using difference_type = typename std::iterator_traits<PtrIter>::difference_type;
+		using iterator_category = std::random_access_iterator_tag;
+
+		DerefIterator(PtrIter i) : it(i) {}
+		reference operator*() const { return **it; }
+		pointer operator->() const { return it->get(); }
+		DerefIterator& operator++() { ++it; return *this; }
+		DerefIterator operator++(int) { auto tmp = *this; ++it; return tmp; }
+		DerefIterator& operator--() { --it; return *this; }
+		DerefIterator operator--(int) { auto tmp = *this; --it; return tmp; }
+		bool operator==(const DerefIterator& other) const { return it == other.it; }
+		bool operator!=(const DerefIterator& other) const { return it != other.it; }
+		bool operator<(const DerefIterator& other) const { return it < other.it; }
+		bool operator>(const DerefIterator& other) const { return it > other.it; }
+		bool operator<=(const DerefIterator& other) const { return it <= other.it; }
+		bool operator>=(const DerefIterator& other) const { return it >= other.it; }
+		difference_type operator-(const DerefIterator& other) const { return it - other.it; }
+		DerefIterator operator+(difference_type n) const { return DerefIterator(it + n); }
+		DerefIterator operator-(difference_type n) const { return DerefIterator(it - n); }
+		DerefIterator& operator+=(difference_type n) { it += n; return *this; }
+		DerefIterator& operator-=(difference_type n) { it -= n; return *this; }
+		reference operator[](difference_type n) const { return *it[n]; }
+	};
+
+	auto begin() { return DerefIterator<decltype(adven)::iterator>(adven.begin()); }
+	auto end() { return DerefIterator<decltype(adven)::iterator>(adven.end()); }
+	auto begin() const { return DerefIterator<decltype(adven)::const_iterator>(adven.begin()); }
+	auto end() const { return DerefIterator<decltype(adven)::const_iterator>(adven.end()); }
 #endif
 
 	typedef std::vector<cEncNote>::iterator encIter;

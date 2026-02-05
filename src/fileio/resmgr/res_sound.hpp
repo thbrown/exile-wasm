@@ -9,7 +9,11 @@
 #ifndef BOE_RES_SOUND_HPP
 #define BOE_RES_SOUND_HPP
 
-#include <SFML/Audio.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Audio.hpp>
+#else
+	#include "compat/audio.hpp"
+#endif
 #include "resmgr.hpp"
 
 using SoundRsrc = ResMgr::cPointer<sf::SoundBuffer>;

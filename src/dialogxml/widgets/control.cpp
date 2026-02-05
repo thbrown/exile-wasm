@@ -19,8 +19,12 @@
 #include "tools/prefs.hpp"
 #include "tools/cursors.hpp"
 #include "replay.hpp"
-#include <boost/lexical_cast.hpp>
-#include <boost/algorithm/string/replace.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/lexical_cast.hpp>
+	#include <boost/algorithm/string/replace.hpp>
+#else
+	#include "compat/boost_compat.hpp"
+#endif
 #include "winutil.hpp"
 
 // Hyperlink forward declaration
@@ -46,7 +50,7 @@ void cControl::setText(std::string l){
 
 void cControl::replaceText(std::string find, std::string replace) {
 	std::string text = getText();
-	boost::replace_first(text, find, replace);
+	boost::algorithm::replace_first(text, find, replace);
 	setText(text);
 }
 
@@ -415,7 +419,7 @@ void cControl::attachFocusHandler(std::function<bool(cDialog&,std::string,bool)>
 bool cControl::haveHandler(eDlogEvt t) const {
 	auto iter = event_handlers.find(t);
 	if(iter == event_handlers.end()) return false;
-	return !iter->second.empty();
+	return iter->second.has_value();
 }
 
 bool cControl::triggerClickHandler(cDialog& dlg, std::string id, eKeyMod mods){

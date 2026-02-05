@@ -18,6 +18,11 @@
 #include "gfx/gfxsheets.hpp" // for NO_PIC
 #include "damage.hpp"
 
+// CHECK_EQ macro for equality comparisons (used in operator==)
+#ifndef CHECK_EQ
+	#define CHECK_EQ(other, field) if (this->field != other.field) return false
+#endif
+
 void cTerrain::import_legacy(legacy::terrain_type_type& old){
 	static const std::set<int> archetypes = {
 		// This lists graphics that represent the archetypal terrains for each ground type

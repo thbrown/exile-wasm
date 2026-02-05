@@ -8,7 +8,11 @@
 #ifndef BOE_keymods_hpp
 #define BOE_keymods_hpp
 
-#include <SFML/Window/Event.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Window/Event.hpp>
+#else
+	#include "compat/event.hpp"
+#endif
 
 class keymods_t {
 	bool alt = false, ctrl = false, shift = false, meta = false;

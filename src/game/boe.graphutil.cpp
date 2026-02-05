@@ -1,5 +1,9 @@
 
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 
 #include <cstdio>
 #include <queue>

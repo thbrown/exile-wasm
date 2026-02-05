@@ -11,9 +11,131 @@
 #include <iostream>
 #include <memory>
 #include <queue>
-#include <boost/optional.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/ptr_container/ptr_set.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/optional.hpp>
+	#include <boost/lexical_cast.hpp>
+	#include <boost/ptr_container/ptr_set.hpp>
+#else
+	#include <optional>
+	#include <set>
+	namespace boost {
+		template<typename T>
+		using optional = std::optional<T>;
+
+		class bad_lexical_cast : public std::runtime_error {
+		public:
+			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
+		};
+
+		template<typename T, typename S>
+		T lexical_cast(const S& arg) {
+			try {
+				if constexpr (std::is_same_v<T, std::string>) {
+					if constexpr (std::is_enum_v<S>) {
+						return std::to_string(static_cast<int>(arg));
+					} else if constexpr (std::is_integral_v<S> || std::is_floating_point_v<S>) {
+						return std::to_string(arg);
+					}
+				} else if constexpr (std::is_integral_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				} else if constexpr (std::is_enum_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				}
+				throw bad_lexical_cast();
+			} catch (...) {
+				throw bad_lexical_cast();
+			}
+		}
+
+		// ptr_set replacement - mimics boost::ptr_set semantics
+		template<typename T>
+		class ptr_set {
+		private:
+			// Comparator that dereferences pointers to compare actual values
+			struct ptr_less {
+				using is_transparent = void;  // Enable transparent comparisons
+
+				bool operator()(const std::unique_ptr<T>& a, const std::unique_ptr<T>& b) const {
+					return *a < *b;
+				}
+
+				// Allow comparing unique_ptr with raw value
+				bool operator()(const std::unique_ptr<T>& a, const T& b) const {
+					return *a < b;
+				}
+
+				bool operator()(const T& a, const std::unique_ptr<T>& b) const {
+					return a < *b;
+				}
+			};
+
+			std::set<std::unique_ptr<T>, ptr_less> data_;
+
+		public:
+			// Iterator wrapper that dereferences automatically
+			class iterator {
+				typename std::set<std::unique_ptr<T>, ptr_less>::iterator it_;
+				friend class ptr_set;
+			public:
+				iterator() = default;
+				iterator(typename std::set<std::unique_ptr<T>, ptr_less>::iterator it) : it_(it) {}
+
+				T& operator*() const { return **it_; }
+				T* operator->() const { return it_->get(); }
+				iterator& operator++() { ++it_; return *this; }
+				iterator operator++(int) { iterator tmp = *this; ++it_; return tmp; }
+				bool operator==(const iterator& other) const { return it_ == other.it_; }
+				bool operator!=(const iterator& other) const { return it_ != other.it_; }
+			};
+
+			class const_iterator {
+				typename std::set<std::unique_ptr<T>, ptr_less>::const_iterator it_;
+				friend class ptr_set;
+			public:
+				const_iterator() = default;
+				const_iterator(typename std::set<std::unique_ptr<T>, ptr_less>::const_iterator it) : it_(it) {}
+
+				const T& operator*() const { return **it_; }
+				const T* operator->() const { return it_->get(); }
+				const_iterator& operator++() { ++it_; return *this; }
+				const_iterator operator++(int) { const_iterator tmp = *this; ++it_; return tmp; }
+				bool operator==(const const_iterator& other) const { return it_ == other.it_; }
+				bool operator!=(const const_iterator& other) const { return it_ != other.it_; }
+			};
+
+			iterator begin() { return iterator(data_.begin()); }
+			iterator end() { return iterator(data_.end()); }
+			const_iterator begin() const { return const_iterator(data_.begin()); }
+			const_iterator end() const { return const_iterator(data_.end()); }
+
+			// Insert takes raw pointer and returns iterator
+			std::pair<iterator, bool> insert(T* ptr) {
+				auto result = data_.insert(std::unique_ptr<T>(ptr));
+				return {iterator(result.first), result.second};
+			}
+
+			// Find by value using transparent comparator
+			template<typename K>
+			iterator find(const K& key) {
+				auto it = data_.find(key);
+				return iterator(it);
+			}
+
+			template<typename K>
+			const_iterator find(const K& key) const {
+				auto it = data_.find(key);
+				return const_iterator(it);
+			}
+
+			size_t size() const { return data_.size(); }
+			bool empty() const { return data_.empty(); }
+		};
+	}
+#endif
 
 #include "spell.hpp"
 #include "scenario/item_abilities.hpp"

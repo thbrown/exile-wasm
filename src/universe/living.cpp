@@ -10,7 +10,9 @@
 
 #include <algorithm>
 #include <tuple>
-#include <fmt/format.h>
+#ifndef __EMSCRIPTEN__
+	#include <fmt/format.h>
+#endif
 #include "mathutil.hpp"
 
 void iLiving::apply_status(eStatus which, int how_much) {
@@ -272,8 +274,14 @@ void iLiving::spell_note(eSpellNote which_mess) const {
 			msg += "{}: Unknown action " + std::to_string(int(which_mess));
 	}
 	
-	if(which_mess != eSpellNote::NONE)
+	if(which_mess != eSpellNote::NONE) {
+#ifndef __EMSCRIPTEN__
 		print_result(fmt::format(msg, get_name()));
+#else
+		// Web: Simple message (TODO: implement proper formatting)
+		print_result(std::string(msg) + " " + get_name());
+#endif
+	}
 }
 
 void iLiving::print_attacks(const iLiving& target) const {
@@ -282,19 +290,34 @@ void iLiving::print_attacks(const iLiving& target) const {
 	if(&target == this) {
 		target_name = "themself";
 	} else target_name = target.get_name();
+#ifndef __EMSCRIPTEN__
 	print_result(fmt::format("{} attacks {}", get_name(), target_name));
+#else
+	print_result(get_name() + " attacks " + target_name);
+#endif
 }
 
 void iLiving::cast_spell_note(eSpell spell) const {
 	if(!print_result) return;
+#ifndef __EMSCRIPTEN__
 	print_result(fmt::format("{} casts:", get_name()));
 	print_result(fmt::format("  {}", (*spell).name()));
+#else
+	print_result(get_name() + " casts:");
+	print_result("  " + (*spell).name());
+#endif
 }
 
 void iLiving::damaged_msg(int how_much,int how_much_spec) const {
 	if(!print_result) return;
 	if(how_much == 0 && how_much_spec == 0) return;
+#ifndef __EMSCRIPTEN__
 	if(how_much_spec > 0)
 		print_result(fmt::format("  {} takes {}+{}", get_name(), how_much, how_much_spec));
 	else print_result(fmt::format("  {} takes {}", get_name(), how_much));
+#else
+	if(how_much_spec > 0)
+		print_result("  " + get_name() + " takes " + std::to_string(how_much) + "+" + std::to_string(how_much_spec));
+	else print_result("  " + get_name() + " takes " + std::to_string(how_much));
+#endif
 }

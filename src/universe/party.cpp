@@ -600,7 +600,13 @@ bool cParty::forced_give(cItem item,eItemAbil abil,short dat) {
 		item.abil_data.value = dat % 1000;
 	}
 	// TODO: It's strange to check main_status in the inner loop here rather than the outer loop
+#ifndef __EMSCRIPTEN__
 	for(cPlayer& pc : *this)
+#else
+	for(auto& pc_ptr : get_party_members()) {
+		if(!pc_ptr) continue;
+		cPlayer& pc = *pc_ptr;
+#endif
 		for(cItem& slot : pc.items)
 			if(pc.main_status == eMainStatus::ALIVE && slot.variety == eItemType::NO_ITEM) {
 				slot = item;
@@ -618,15 +624,27 @@ bool cParty::forced_give(cItem item,eItemAbil abil,short dat) {
 				pc.sort_items();
 				return true;
 			}
+#ifdef __EMSCRIPTEN__
+	}
+#endif
 	return false;
 }
 
 bool cParty::all_items_identified() {
 	bool all_identified = true;
+#ifndef __EMSCRIPTEN__
 	for(cPlayer& pc : *this)
+#else
+	for(auto& pc_ptr : get_party_members()) {
+		if(!pc_ptr) continue;
+		cPlayer& pc = *pc_ptr;
+#endif
 		for(cItem& item : pc.items)
 			if (item.variety != eItemType::NO_ITEM)
 				all_identified &= item.ident;
+#ifdef __EMSCRIPTEN__
+	}
+#endif
 	return all_identified;
 }
 
@@ -653,18 +671,33 @@ bool cParty::take_abil(eItemAbil abil, short dat) {
 bool cParty::has_class(unsigned int item_class, bool require_charges) {
 	if(item_class == 0)
 		return false;
+#ifndef __EMSCRIPTEN__
 	for(auto& pc : *this)
+#else
+	for(auto& pc_ptr : get_party_members()) {
+		if(!pc_ptr) continue;
+		auto& pc = *pc_ptr;
+#endif
 		if(pc.main_status == eMainStatus::ALIVE)
 			if(cInvenSlot item = pc.has_class(item_class, require_charges)) {
 				return true;
 			}
+#ifdef __EMSCRIPTEN__
+	}
+#endif
 	return false;
 }
 
 bool cParty::take_class(unsigned int item_class) const {
 	if(item_class == 0)
 		return false;
+#ifndef __EMSCRIPTEN__
 	for(auto& pc : *this)
+#else
+	for(auto& pc_ptr : get_party_members()) {
+		if(!pc_ptr) continue;
+		auto& pc = *pc_ptr;
+#endif
 		if(pc.main_status == eMainStatus::ALIVE)
 			if(cInvenSlot item = pc.has_class(item_class, true)) {
 				if(item->charges > 1 || item->rechargeable)
@@ -672,6 +705,9 @@ bool cParty::take_class(unsigned int item_class) const {
 				else pc.take_item(item.slot);
 				return true;
 			}
+#ifdef __EMSCRIPTEN__
+	}
+#endif
 	return false;
 }
 

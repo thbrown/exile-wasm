@@ -9,6 +9,9 @@
 #ifndef BoE_QUEST_HPP
 #define BoE_QUEST_HPP
 
+#include <string>
+#include <iosfwd>
+
 enum class eQuestStatus {AVAILABLE, STARTED, COMPLETED, FAILED};
 
 class cQuest {

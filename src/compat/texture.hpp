@@ -27,6 +27,39 @@
 			bool operator==(const Color& other) const {
 				return r == other.r && g == other.g && b == other.b && a == other.a;
 			}
+
+			uint32_t toInteger() const {
+				return (r << 24) | (g << 16) | (b << 8) | a;
+			}
+
+			// Common color constants
+			static const Color Black;
+			static const Color White;
+			static const Color Red;
+			static const Color Green;
+			static const Color Blue;
+			static const Color Yellow;
+			static const Color Magenta;
+			static const Color Cyan;
+			static const Color Transparent;
+		};
+
+		// Define color constants
+		inline const Color Color::Black(0, 0, 0);
+		inline const Color Color::White(255, 255, 255);
+		inline const Color Color::Red(255, 0, 0);
+		inline const Color Color::Green(0, 255, 0);
+		inline const Color Color::Blue(0, 0, 255);
+		inline const Color Color::Yellow(255, 255, 0);
+		inline const Color Color::Magenta(255, 0, 255);
+		inline const Color Color::Cyan(0, 255, 255);
+		inline const Color Color::Transparent(0, 0, 0, 0);
+
+		// Simple size struct for Image::getSize()
+		struct ImageSize {
+			unsigned int x, y;
+			template<typename T>
+			operator T() const { return T{x, y}; }  // Allow conversion to any type with x,y members
 		};
 
 		// Image class - holds pixel data
@@ -76,10 +109,15 @@
 				return create(1, 1);
 			}
 
-			unsigned int getSize() const { return width_ * height_ * 4; }
+			ImageSize getSize() const { return ImageSize{width_, height_}; }
 			unsigned int getWidth() const { return width_; }
 			unsigned int getHeight() const { return height_; }
 			const uint8_t* getPixelsPtr() const { return pixels_.data(); }
+
+			bool saveToFile(const std::string& filename) const {
+				// TODO: Implement actual file saving
+				return true;
+			}
 
 			void setPixel(unsigned int x, unsigned int y, const Color& color) {
 				if (x < width_ && y < height_) {
@@ -97,6 +135,48 @@
 					return Color(pixels_[idx], pixels_[idx + 1], pixels_[idx + 2], pixels_[idx + 3]);
 				}
 				return Color();
+			}
+
+			void createMaskFromColor(const Color& maskColor, uint8_t alpha = 0) {
+				// Make all pixels of specified color transparent
+				for (size_t i = 0; i < width_ * height_; ++i) {
+					size_t idx = i * 4;
+					if (pixels_[idx] == maskColor.r &&
+						pixels_[idx + 1] == maskColor.g &&
+						pixels_[idx + 2] == maskColor.b) {
+						pixels_[idx + 3] = alpha;
+					}
+				}
+			}
+
+			// Simple overload with no source rect - copies entire source image
+			void copy(const Image& source, unsigned int destX, unsigned int destY) {
+				copy(source, destX, destY, 0, 0, source.getWidth(), source.getHeight(), false);
+			}
+
+			// Template version that accepts any rect-like type (IntRect, etc.)
+			template<typename RectType>
+			void copy(const Image& source, unsigned int destX, unsigned int destY, const RectType& sourceRect, bool applyAlpha = false) {
+				unsigned int srcX = sourceRect.left;
+				unsigned int srcY = sourceRect.top;
+				unsigned int srcW = sourceRect.width > 0 ? sourceRect.width : source.getWidth();
+				unsigned int srcH = sourceRect.height > 0 ? sourceRect.height : source.getHeight();
+				copy(source, destX, destY, srcX, srcY, srcW, srcH, applyAlpha);
+			}
+
+			// Core implementation with individual parameters
+			void copy(const Image& source, unsigned int destX, unsigned int destY,
+			         unsigned int srcX, unsigned int srcY, unsigned int srcW, unsigned int srcH, bool applyAlpha = false) {
+				for (unsigned int y = 0; y < srcH && (destY + y) < height_; ++y) {
+					for (unsigned int x = 0; x < srcW && (destX + x) < width_; ++x) {
+						if ((srcX + x) < source.getWidth() && (srcY + y) < source.getHeight()) {
+							Color srcPixel = source.getPixel(srcX + x, srcY + y);
+							if (!applyAlpha || srcPixel.a > 0) {
+								setPixel(destX + x, destY + y, srcPixel);
+							}
+						}
+					}
+				}
 			}
 		};
 
@@ -134,7 +214,7 @@
 				return create(1, 1);
 			}
 
-			unsigned int getSize() const { return width_ * height_ * 4; }
+			ImageSize getSize() const { return ImageSize{width_, height_}; }
 			unsigned int getWidth() const { return width_; }
 			unsigned int getHeight() const { return height_; }
 
@@ -142,6 +222,21 @@
 				Image img;
 				img.create(width_, height_);
 				return img;
+			}
+
+			void update(const Image& image) {
+				// TODO: Implement texture update from image
+				width_ = image.getWidth();
+				height_ = image.getHeight();
+			}
+
+			void update(const uint8_t* pixels) {
+				// TODO: Implement texture update from pixels
+			}
+
+			void update(const uint8_t* pixels, unsigned int width, unsigned int height, unsigned int x, unsigned int y) {
+				// Update a specific region of the texture
+				// TODO: Implement partial texture update
 			}
 		};
 	}

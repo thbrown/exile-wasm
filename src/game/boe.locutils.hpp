@@ -1,5 +1,6 @@
 
 #include <functional>
+#include "global.hpp"
 #include "location.hpp"
 
 bool is_explored(short i,short j);

@@ -56,9 +56,34 @@
 				return *this;
 			}
 
+			dynamic_bitset& reset() {
+				bits.assign(bits.size(), false);
+				return *this;
+			}
+
 			dynamic_bitset& flip(size_t pos) {
 				if(pos < bits.size()) bits[pos] = !bits[pos];
 				return *this;
+			}
+
+			// Query operations
+			bool any() const {
+				for(bool bit : bits) {
+					if(bit) return true;
+				}
+				return false;
+			}
+
+			bool none() const {
+				return !any();
+			}
+
+			size_t count() const {
+				size_t result = 0;
+				for(bool bit : bits) {
+					if(bit) ++result;
+				}
+				return result;
 			}
 
 			// Comparison
@@ -70,6 +95,34 @@
 				return bits != other.bits;
 			}
 		};
+
+		// Stream operators (for serialization)
+		template<typename Block, typename CharT, typename Traits>
+		std::basic_ostream<CharT, Traits>& operator<<(
+			std::basic_ostream<CharT, Traits>& os,
+			const dynamic_bitset<Block>& bitset)
+		{
+			// Output as binary string (0s and 1s)
+			for(size_t i = 0; i < bitset.size(); ++i) {
+				os << (bitset[i] ? '1' : '0');
+			}
+			return os;
+		}
+
+		template<typename Block, typename CharT, typename Traits>
+		std::basic_istream<CharT, Traits>& operator>>(
+			std::basic_istream<CharT, Traits>& is,
+			dynamic_bitset<Block>& bitset)
+		{
+			// Read binary string and set bits
+			std::basic_string<CharT, Traits> str;
+			is >> str;
+			bitset.resize(str.size());
+			for(size_t i = 0; i < str.size(); ++i) {
+				bitset[i] = (str[i] == '1');
+			}
+			return is;
+		}
 	}
 
 #else

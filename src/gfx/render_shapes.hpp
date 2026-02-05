@@ -12,7 +12,11 @@
 #include <vector>
 #include <memory>
 #include <map>
-#include <SFML/Graphics/Shape.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics/Shape.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 #include "location.hpp"
 
 class Region {

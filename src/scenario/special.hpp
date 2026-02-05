@@ -11,9 +11,17 @@
 
 #include <iosfwd>
 #include <string>
+#include <map>
+#include <vector>
 #include <functional>
+#include "global.hpp"
 #include "location.hpp"
 #include "dialogxml/widgets/pictypes.hpp"
+
+// CHECK_EQ macro for equality comparisons (used in operator==)
+#ifndef CHECK_EQ
+	#define CHECK_EQ(other, field) if (this->field != other.field) return false
+#endif
 
 namespace legacy { struct special_node_type; };
 

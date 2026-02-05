@@ -1,7 +1,11 @@
 #ifndef EVENT_LISTENER_HPP
 #define EVENT_LISTENER_HPP
 
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+#else
+	#include "compat/event.hpp"
+#endif
 
 class iEventListener {
 	

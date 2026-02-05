@@ -10,7 +10,12 @@
 
 #include <iostream>
 #include <fstream>
-#include <boost/filesystem/path.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/path.hpp>
+#else
+	#include <filesystem>
+	namespace fs = std::filesystem;
+#endif
 
 #include "fileio/fileio.hpp"
 #include "gfx/render_text.hpp"

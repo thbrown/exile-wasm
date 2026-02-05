@@ -2,7 +2,11 @@
 #ifndef BOE_GAME_GRAPHICS_H
 #define BOE_GAME_GRAPHICS_H
 
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 #include "location.hpp"
 #include "tools/framerate_limiter.hpp"
 

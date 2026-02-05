@@ -6,15 +6,58 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
-#include <boost/algorithm/string/predicate.hpp>
-#include <boost/algorithm/string/erase.hpp>
-#include <boost/optional.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/algorithm/string/predicate.hpp>
+	#include <boost/algorithm/string/erase.hpp>
+	#include <boost/optional.hpp>
+	#include <boost/lexical_cast.hpp>
+#else
+	#include <optional>
+	#include <algorithm>
+	#include <string>
+	namespace boost {
+		using std::optional;
+
+		// String predicate functions
+		inline bool starts_with(const std::string& str, const std::string& prefix) {
+			return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
+		}
+
+		inline bool ends_with(const std::string& str, const std::string& suffix) {
+			return str.size() >= suffix.size() && str.substr(str.size() - suffix.size()) == suffix;
+		}
+
+		// String erase functions
+		inline void erase_all(std::string& input, const std::string& search) {
+			size_t pos = 0;
+			while ((pos = input.find(search, pos)) != std::string::npos) {
+				input.erase(pos, search.length());
+			}
+		}
+
+		class bad_lexical_cast : public std::runtime_error {
+		public:
+			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
+		};
+
+		template<typename T, typename S>
+		T lexical_cast(const S& arg) {
+			if constexpr (std::is_same_v<T, std::string>) {
+				return std::to_string(arg);
+			} else if constexpr (std::is_integral_v<T>) {
+				if constexpr (std::is_same_v<S, std::string>) {
+					return static_cast<T>(std::stoi(arg));
+				}
+			}
+			throw bad_lexical_cast();
+		}
+	}
+#endif
 #include <cppcodec/base64_rfc4648.hpp>
 #include <locale>
 #include <codecvt>
 #include <string>
 #include <algorithm>
-#include <boost/lexical_cast.hpp>
 
 #include "ticpp.h"
 #include "gfx/render_shapes.hpp"

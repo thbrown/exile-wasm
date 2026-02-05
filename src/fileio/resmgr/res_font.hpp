@@ -10,7 +10,11 @@
 #define BOE_RES_FONT_HPP
 
 #include "resmgr.hpp"
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 
 using FontRsrc = ResMgr::cPointer<sf::Font>;
 

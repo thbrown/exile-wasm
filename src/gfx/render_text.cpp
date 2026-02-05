@@ -10,7 +10,11 @@
 
 #include <iostream>
 #include <set>
-#include <boost/algorithm/string/replace.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/algorithm/string/replace.hpp>
+#else
+	#include "compat/boost_compat.hpp"
+#endif
 #include "fileio/resmgr/res_font.hpp"
 #include "gfx/render_shapes.hpp"
 #include <utility>
@@ -257,7 +261,7 @@ static void win_draw_string(sf::RenderTarget& dest_window,rectangle dest_rect,st
 	adjust_y -= str_to_draw.getLocalBounds().height;
 	
 	for(auto it : substitutions){
-		boost::replace_all(str, it.first, it.second);
+		boost::algorithm::replace_all(str, it.first, it.second);
 	}
 	str_to_draw.setString(str);
 	short total_width = str_to_draw.getLocalBounds().width;

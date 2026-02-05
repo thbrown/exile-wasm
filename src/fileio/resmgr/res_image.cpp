@@ -8,6 +8,8 @@
 
 #include "res_image.hpp"
 
+using namespace ResMgr;
+
 class ImageLoader : public ResMgr::cLoader<sf::Texture> {
 	/// Load an image from a PNG file.
 	sf::Texture* operator() (const fs::path& fpath) const override {

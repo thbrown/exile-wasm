@@ -15,7 +15,11 @@
 #include "mathutil.hpp"
 #include "tools/cursors.hpp"
 #include "replay.hpp"
-#include <boost/lexical_cast.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/lexical_cast.hpp>
+#else
+	#include "compat/boost_lexical_cast.hpp"
+#endif
 #include "winutil.hpp"
 
 std::string cScrollbar::scroll_textures[NUM_STYLES] = {

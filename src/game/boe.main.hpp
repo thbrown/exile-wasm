@@ -1,5 +1,10 @@
 
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+#else
+	#include "compat/graphics.hpp"
+	#include "compat/event.hpp"
+#endif
 
 #ifdef __APPLE__
 extern eMenuChoice menuChoice;

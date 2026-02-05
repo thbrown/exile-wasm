@@ -1395,7 +1395,14 @@ void cUniverse::enter_scenario(const std::string& name) {
 	party.horses.clear();
 	std::copy_if(scenario.boats.begin(), scenario.boats.end(), std::back_inserter(party.boats), std::bind(&cVehicle::exists, _1));
 	std::copy_if(scenario.horses.begin(), scenario.horses.end(), std::back_inserter(party.horses), std::bind(&cVehicle::exists, _1));
+#ifndef __EMSCRIPTEN__
 	for(auto& pc : party) {
+#else
+	// Web build: iterate over party members directly (iterators disabled)
+	for(auto& pc_ptr : party.get_party_members()) {
+		if(!pc_ptr) continue;
+		auto& pc = *pc_ptr;
+#endif
 		pc.status.clear();
 		if(isSplit(pc.main_status))
 			pc.main_status -= eMainStatus::SPLIT;

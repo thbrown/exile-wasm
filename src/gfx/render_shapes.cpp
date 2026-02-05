@@ -10,11 +10,20 @@
 
 #include <cmath>
 #include <iostream>
-#include <boost/math/constants/constants.hpp>
-#include <SFML/OpenGL.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/math/constants/constants.hpp>
+	using boost::math::constants::pi;
+#else
+	#ifndef M_PI
+		#define M_PI 3.14159265358979323846
+	#endif
+	namespace boost { namespace math { namespace constants {
+		template<typename T> constexpr T pi() { return static_cast<T>(M_PI); }
+	}}}
+	using boost::math::constants::pi;
+#endif
+#include "compat/graphics.hpp"
 #include "render_image.hpp"
-
-using boost::math::constants::pi;
 using pt_idx_t = decltype(std::declval<sf::Shape>().getPointCount());
 
 std::map<std::string,sf::Color> colour_map = {

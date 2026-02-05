@@ -3,7 +3,11 @@
 #define BOE_GAME_ACTIONS_H
 
 #include <vector>
-#include <SFML/Window/Event.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Window/Event.hpp>
+#else
+	#include "compat/event.hpp"
+#endif
 #include "location.hpp"
 #include "dialogxml/keycodes.hpp"
 #include "tools/framerate_limiter.hpp"

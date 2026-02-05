@@ -84,6 +84,17 @@
 				return Time(elapsed);
 			}
 		};
+
+		// Sleep function (stub for web builds)
+		inline void sleep(Time duration) {
+			// Stub - in real web implementation would use emscripten_sleep
+			// For now, just do nothing
+		}
+
+		// Free function aliases for convenience
+		inline Time seconds(float amount) { return Time::seconds(amount); }
+		inline Time milliseconds(int amount) { return Time::milliseconds(amount); }
+		inline Time microseconds(long long amount) { return Time::microseconds(amount); }
 	}
 
 #else

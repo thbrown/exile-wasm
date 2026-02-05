@@ -2,7 +2,13 @@
 #ifndef BOE_GAME_FILEIO_H
 #define BOE_GAME_FILEIO_H
 
-#include <boost/filesystem/path.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/path.hpp>
+	namespace fs = boost::filesystem;
+#else
+	#include <filesystem>
+	namespace fs = std::filesystem;
+#endif
 #include "location.hpp"
 #include "boe.global.hpp"
 

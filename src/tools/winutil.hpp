@@ -9,10 +9,17 @@
 #ifndef BoE_boe_windows_h
 #define BoE_boe_windows_h
 
-#include <boost/filesystem/path.hpp>
-#include <SFML/Window.hpp>
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/Graphics/RenderWindow.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/path.hpp>
+	#include <SFML/Window.hpp>
+	#include <SFML/Graphics/Image.hpp>
+	#include <SFML/Graphics/RenderWindow.hpp>
+	namespace fs = boost::filesystem;
+#else
+	#include <filesystem>
+	#include "compat/graphics.hpp"
+	namespace fs = std::filesystem;
+#endif
 #include <memory>
 #include <vector>
 

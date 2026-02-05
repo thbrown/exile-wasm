@@ -8,6 +8,8 @@
 
 #include "res_font.hpp"
 
+using namespace ResMgr;
+
 class FontLoader : public ResMgr::cLoader<sf::Font> {
 	/// Load a font from a TTF or BDF file.
 	sf::Font* operator() (const fs::path& fpath) const override {

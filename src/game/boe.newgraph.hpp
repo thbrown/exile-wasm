@@ -1,6 +1,10 @@
 
 #include <string>
-#include <SFML/Graphics/RenderTarget.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics/RenderTarget.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 #include "location.hpp"
 #include "scenario/item.hpp"
 #include "gfx/gfxsheets.hpp"

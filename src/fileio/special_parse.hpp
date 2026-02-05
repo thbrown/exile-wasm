@@ -10,26 +10,43 @@
 #define BoE_special_parse_hpp
 
 #include "scenario/special.hpp"
-#include <boost/spirit/include/classic.hpp>
 
-enum eParseError {
-	generic_error,
-	double_def,
-	expect_op,
-	expect_sym,
-	expect_dat,
-	expect_eq,
-	expect_int,
-	expect_val,
-	expect_nl,
-	NUM_PARSE_ERR
-};
+#ifndef __EMSCRIPTEN__
+	#include <boost/spirit/include/classic.hpp>
 
-namespace spirit = boost::spirit::classic;
-typedef spirit::rule<> Rule;
-typedef spirit::assertion<eParseError> Err;
-typedef spirit::guard<eParseError> Guard;
+	enum eParseError {
+		generic_error,
+		double_def,
+		expect_op,
+		expect_sym,
+		expect_dat,
+		expect_eq,
+		expect_int,
+		expect_val,
+		expect_nl,
+		NUM_PARSE_ERR
+	};
 
+	namespace spirit = boost::spirit::classic;
+	typedef spirit::rule<> Rule;
+	typedef spirit::assertion<eParseError> Err;
+	typedef spirit::guard<eParseError> Guard;
+#else
+	// Web build: Parser not needed (runtime only)
+	enum eParseError {
+		generic_error,
+		NUM_PARSE_ERR
+	};
+
+	// Stub types for compatibility
+	struct Rule {
+		struct scanner_t {
+			typedef const char* iterator_t;
+		};
+	};
+#endif
+
+#ifndef __EMSCRIPTEN__
 class SpecialParser {
 	using Iter = Rule::scanner_t::iterator_t;
 	using ErrStatus = spirit::error_status<>;
@@ -82,5 +99,21 @@ public:
 	~xSpecParseError() throw();
 	const char* what() const throw();
 };
+#else
+// Web build stubs (parser not needed at runtime)
+class SpecialParser {
+public:
+	SpecialParser() {}
+	std::map<size_t,cSpecial> parse(std::string code, std::string context) {
+		return std::map<size_t,cSpecial>();
+	}
+};
+
+class xSpecParseError : public std::exception {
+public:
+	xSpecParseError(std::string found, eParseError expect, int line, int col, std::string file) {}
+	const char* what() const throw() { return "Parser not available in web build"; }
+};
+#endif
 
 #endif

@@ -2,12 +2,71 @@
 #include "boe.global.hpp"
 #include "tools/replay.hpp"
 #include "universe/universe.hpp"
-#include "cli.hpp"
+#ifndef __EMSCRIPTEN__
+	#include "cli.hpp"
+#else
+	#include <emscripten.h>
+#endif
 
-#include <boost/filesystem/operations.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/optional.hpp>
-#include <fmt/format.h>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/operations.hpp>
+	#include <boost/lexical_cast.hpp>
+	#include <boost/optional.hpp>
+	#include <fmt/format.h>
+#else
+	#include <filesystem>
+	#include <optional>
+	#include <string>
+	namespace fs = std::filesystem;
+	namespace boost {
+		using std::optional;
+		class bad_lexical_cast : public std::runtime_error {
+		public:
+			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
+		};
+		template<typename T, typename S>
+		T lexical_cast(const S& arg) {
+			try {
+				if constexpr (std::is_same_v<T, std::string>) {
+					if constexpr (std::is_enum_v<S>) {
+						return std::to_string(static_cast<int>(arg));
+					} else if constexpr (std::is_integral_v<S> || std::is_floating_point_v<S>) {
+						return std::to_string(arg);
+					}
+				} else if constexpr (std::is_integral_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				} else if constexpr (std::is_enum_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				}
+				throw bad_lexical_cast();
+			} catch (...) {
+				throw bad_lexical_cast();
+			}
+		}
+	}
+	namespace fmt {
+		inline std::string to_str(const std::string& s) { return s; }
+		inline std::string to_str(const char* s) { return std::string(s); }
+		template<typename T>
+		inline std::string to_str(T val) { return std::to_string(val); }
+		inline std::string format(const std::string& fmt_str) {
+			return fmt_str;
+		}
+		template<typename T, typename... Args>
+		std::string format(const std::string& fmt_str, T first, Args... rest) {
+			size_t pos = fmt_str.find("{}");
+			if (pos == std::string::npos) {
+				return fmt_str;
+			}
+			std::string result = fmt_str.substr(0, pos) + to_str(first) + fmt_str.substr(pos + 2);
+			return format(result, rest...);
+		}
+	}
+#endif
 #include <unordered_map>
 #include <string>
 #include <memory>
@@ -50,8 +109,10 @@
 #include "tools/drawable_manager.hpp"
 #include "gfx/gfxsheets.hpp"
 
-using clara::ParserResult;
-using clara::ParseResultType;
+#ifndef __EMSCRIPTEN__
+	using clara::ParserResult;
+	using clara::ParseResultType;
+#endif
 
 bool All_Done = false;
 short num_fonts;
@@ -131,6 +192,7 @@ std::map<std::string,std::vector<std::string>> feature_flags = {
 	{"magic-resistance", {"fixed"}} // Resist Magic used to not help with magic damage!
 };
 
+#ifndef __EMSCRIPTEN__
 struct cParseEntrance {
 	boost::optional<short>& opt;
 	cParseEntrance(boost::optional<short>& opt) : opt(opt) {}
@@ -171,6 +233,7 @@ struct cParseLocation {
 		}
 	}
 };
+#endif // __EMSCRIPTEN__
 
 /* Display globals */
 short combat_posing_monster = -1, current_working_monster = -1; // 0-5 PC 100 + x - monster x
@@ -215,7 +278,9 @@ sf::Clock animTimer;
 extern long ter_anim_ticks;
 
 static void init_boe(int, char*[]);
+#ifndef __EMSCRIPTEN__
 static void handle_scenario_args();
+#endif
 static void showWelcome();
 
 static void replay_next_action();
@@ -263,6 +328,9 @@ static void dialog_gained_focus(sf::RenderWindow&) {
 #define CATCH_ERRORS
 
 int main(int argc, char* argv[]) {
+#ifdef __EMSCRIPTEN__
+	std::cout << "main() started" << std::endl;
+#endif
 #if 0
 	void debug_oldstructs();
 	debug_oldstructs();
@@ -274,26 +342,58 @@ int main(int argc, char* argv[]) {
 		cDialog::onLostFocus = &dialog_lost_focus;
 		cDialog::onGainedFocus = &dialog_gained_focus;
 
+#ifdef __EMSCRIPTEN__
+		std::cout << "Calling init_boe()..." << std::endl;
+#endif
 		init_boe(argc, argv);
-		
+#ifdef __EMSCRIPTEN__
+		std::cout << "init_boe() completed" << std::endl;
+		std::cout << "Skipping welcome/tip dialogs for web (they block)..." << std::endl;
+		// Skip modal dialogs for web - they block the event loop
+		set_pref("GameRunBefore", true);
+#else
 		if(!get_bool_pref("GameRunBefore"))
 			showWelcome();
 		else if(get_bool_pref("GiveIntroHint", true))
 			tip_of_day();
 		set_pref("GameRunBefore", true);
+#endif
 		finished_init = true;
-		
+
+#ifdef __EMSCRIPTEN__
+		std::cout << "Checking ae_loading..." << std::endl;
+#endif
+
 		if(ae_loading) {
 			finish_load_party();
 			if(overall_mode != MODE_STARTUP)
 				post_load();
 		}
-		
-		menu_activate();
-		restore_cursor();
 
+#ifdef __EMSCRIPTEN__
+		std::cout << "Calling menu_activate()..." << std::endl;
+#endif
+		menu_activate();
+#ifdef __EMSCRIPTEN__
+		std::cout << "Calling restore_cursor()..." << std::endl;
+#endif
+		restore_cursor();
+#ifdef __EMSCRIPTEN__
+		std::cout << "Cursor restored" << std::endl;
+#endif
+
+#ifndef __EMSCRIPTEN__
 		handle_scenario_args();
+#endif
+
+#ifdef __EMSCRIPTEN__
+		std::cout << "About to call handle_events()..." << std::endl;
+		std::cout << "All_Done = " << All_Done << std::endl;
+#endif
 		handle_events();
+#ifdef __EMSCRIPTEN__
+		std::cout << "handle_events() returned" << std::endl;
+#endif
 
 		close_program();
 		return 0;
@@ -385,6 +485,7 @@ extern bool replay_strict;
 
 bool record_in_memory = true;
 
+#ifndef __EMSCRIPTEN__
 static void process_args(int argc, char* argv[]) {
 	preprocess_args(argc, argv);
 	clara::Args args(argc, argv);
@@ -484,7 +585,9 @@ static void process_args(int argc, char* argv[]) {
 		std::cout << "Warning: --loc conflicts with --entrance and will be ignored." << std::endl;
 	}
 }
+#endif // __EMSCRIPTEN__
 
+#ifndef __EMSCRIPTEN__
 static void handle_scenario_args() {
 	bool resetting = false;
 	if(scen_arg_path){
@@ -576,6 +679,7 @@ static void handle_scenario_args() {
 		}
 	}
 }
+#endif // __EMSCRIPTEN__
 
 std::map<std::string, int> startup_button_indices = {
 	// Button layout since 11/30/24
@@ -1071,22 +1175,50 @@ static void replay_feature_flags() {
 void init_boe(int argc, char* argv[]) {
 	set_up_apple_events();
 	init_directories(argv[0]);
+#ifndef __EMSCRIPTEN__
 	process_args(argc, argv);
+#endif
 #ifdef __APPLE__
 	init_menubar(); // Do this first of all because otherwise a default File and Window menu will be seen
 #endif
 
 	sync_prefs();
+#ifdef __EMSCRIPTEN__
+	std::cout << "Calling init_shaders()..." << std::endl;
+#endif
 	init_shaders();
+#ifdef __EMSCRIPTEN__
+	std::cout << "Calling init_tiling()..." << std::endl;
+#endif
 	init_tiling();
+#ifdef __EMSCRIPTEN__
+	std::cout << "Calling init_snd_tool()..." << std::endl;
+#endif
 	init_snd_tool();
-	
+
+#ifdef __EMSCRIPTEN__
+	std::cout << "Calling adjust_window_mode()..." << std::endl;
+#endif
 	// see fallback_scale() in winutil.cpp for where the default UI scale is calculated based on screen size
 	adjust_window_mode();
+#ifdef __EMSCRIPTEN__
+	std::cout << "Calling init_ui()..." << std::endl;
+#endif
 	init_ui();
+#ifdef __EMSCRIPTEN__
+	std::cout << "init_ui() completed, clearing window..." << std::endl;
+#endif
 	// If we don't do this now it'll flash white to start with
+#ifdef __EMSCRIPTEN__
+	// For web, use blue to prove rendering is working
+	mainPtr().clear(sf::Color(0, 0, 128)); // Dark blue
+#else
 	mainPtr().clear(sf::Color::Black);
+#endif
 	mainPtr().display();
+#ifdef __EMSCRIPTEN__
+	std::cout << "Window cleared and displayed" << std::endl;
+#endif
 	
 	set_cursor(watch_curs);
 	init_buf();
@@ -1112,25 +1244,46 @@ void init_boe(int argc, char* argv[]) {
 		game_rand.seed(t);
 	}
 	std::cout << game_rand() << std::endl;
-	init_screen_locs();	
+	init_screen_locs();
 	init_startup();
 	flushingInput = true;
 	cFramerateLimiter fps_limiter;
+#ifdef __EMSCRIPTEN__
+	std::cout << "Skipping startup logo and splash for web..." << std::endl;
+	// Skip the startup graphics for web builds - they probably try to display stuff
+	// that won't work yet
+#else
 	// Hidden preference to hide the startup logo - should be kept hidden
 	if(get_bool_pref("ShowStartupLogo", true))
 		show_logo(fps_limiter);
 	// The preference to hide the startup splash is exposed however.
 	if(get_bool_pref("ShowStartupSplash", true))
 		plop_fancy_startup(fps_limiter);
-	
+#endif
+
 	cUniverse::print_result = iLiving::print_result = add_string_to_buf;
 	cPlayer::give_help_enabled = true;
+#ifdef __EMSCRIPTEN__
+	std::cout << "Calling init_fileio()..." << std::endl;
+#endif
 	init_fileio();
+#ifdef __EMSCRIPTEN__
+	std::cout << "Initializing debug, spells, minimap..." << std::endl;
+#endif
 	init_debug_actions();
 	init_spell_menus();
 	init_mini_map();
+#ifdef __EMSCRIPTEN__
+	std::cout << "Calling redraw_screen()..." << std::endl;
+#endif
 	redraw_screen(REFRESH_NONE);
+#ifdef __EMSCRIPTEN__
+	std::cout << "Calling showMenuBar()..." << std::endl;
+#endif
 	showMenuBar();
+#ifdef __EMSCRIPTEN__
+	std::cout << "init_boe() about to complete" << std::endl;
+#endif
 }
 
 void showWelcome() {
@@ -1235,20 +1388,34 @@ bool main_window_gained_focus = false;
 bool map_window_lost_focus = false;
 bool map_window_gained_focus = false;
 
-void handle_events() {
-	sf::Event currentEvent;
-	cFramerateLimiter fps_limiter;
+#ifdef __EMSCRIPTEN__
+// For Emscripten, we need to make these static so they persist across main loop iterations
+static sf::Event currentEvent;
+static cFramerateLimiter fps_limiter;
 
-	delayed_keys[Key::Left] = 0;
-	delayed_keys[Key::Right] = 0;
-	delayed_keys[Key::Up] = 0;
-	delayed_keys[Key::Down] = 0;
-
-	while(!All_Done) {
+// Main loop iteration function for Emscripten
+static void main_loop_iteration() {
+#ifdef __EMSCRIPTEN__
+	static int frame_count = 0;
+	if(frame_count == 0) {
+		std::cout << "Main loop started, rendering..." << std::endl;
+	}
+	frame_count++;
+#endif
+#else
+// Helper function for desktop builds
+static void run_one_iteration(sf::Event& currentEvent, cFramerateLimiter& fps_limiter) {
+#endif
+	if(All_Done) {
+#ifdef __EMSCRIPTEN__
+		emscripten_cancel_main_loop();
+#endif
+		return;
+	}
 		if(replaying && has_next_action()){
 			if(check_for_interrupt("confirm-interrupt-replay")){
 				replaying = false;
-				continue;
+				return; // Changed from continue since we're now in a function
 			}
 			replay_next_action();
 		}else{
@@ -1334,7 +1501,32 @@ void handle_events() {
 
 		// Prevent the loop from executing too fast.
 		fps_limiter.frame_finished();
+}
+
+void handle_events() {
+#ifdef __EMSCRIPTEN__
+	std::cout << "handle_events() entered" << std::endl;
+#endif
+
+	delayed_keys[Key::Left] = 0;
+	delayed_keys[Key::Right] = 0;
+	delayed_keys[Key::Up] = 0;
+	delayed_keys[Key::Down] = 0;
+
+#ifdef __EMSCRIPTEN__
+	std::cout << "Setting up main loop with emscripten_set_main_loop()..." << std::endl;
+	// For web builds, use Emscripten's main loop
+	emscripten_set_main_loop(main_loop_iteration, 0, 1);
+	std::cout << "emscripten_set_main_loop() returned (should not see this)" << std::endl;
+#else
+	// For desktop builds, use a blocking loop
+	sf::Event currentEvent;
+	cFramerateLimiter fps_limiter;
+
+	while(!All_Done) {
+		run_one_iteration(currentEvent, fps_limiter);
 	}
+#endif
 }
 
 void handle_quit_event() {

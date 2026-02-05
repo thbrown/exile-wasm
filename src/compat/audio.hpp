@@ -15,13 +15,6 @@
 	#include "compat/time.hpp"
 
 	namespace sf {
-		// Sound status
-		enum class Status {
-			Stopped,
-			Paused,
-			Playing
-		};
-
 		// Sound buffer - holds audio data
 		class SoundBuffer {
 		public:
@@ -37,6 +30,14 @@
 
 		// Sound - plays a sound buffer
 		class Sound {
+		public:
+			// Sound status enum (nested like in SFML)
+			enum Status {
+				Stopped,
+				Paused,
+				Playing
+			};
+
 		private:
 			const SoundBuffer* buffer_ = nullptr;
 			float volume_ = 100.f;
@@ -68,6 +69,9 @@
 
 		// Music - streams audio from file
 		class Music {
+		public:
+			using Status = Sound::Status;
+
 		private:
 			float volume_ = 100.f;
 			float pitch_ = 1.f;

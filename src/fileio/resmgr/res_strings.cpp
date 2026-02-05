@@ -10,6 +10,8 @@
 #include <iostream>
 #include <fstream>
 
+using namespace ResMgr;
+
 // Redeclare this instead of including "fileio.h"
 extern std::ostream& std_fmterr(std::ostream& out);
 

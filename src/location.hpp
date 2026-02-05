@@ -10,7 +10,11 @@
 #define BOE_LOCATION_H
 
 #ifdef USE_SFML
-#include <SFML/Graphics.hpp>
+	#include <SFML/Graphics.hpp>
+#elif !defined(__EMSCRIPTEN__)
+	#include <SFML/Graphics.hpp>
+#else
+	#include "compat/graphics.hpp"
 #endif
 
 #include <string>
@@ -36,18 +40,30 @@ struct location {
 
 	location();
 	location(int x, int y);
-#ifdef USE_SFML
+#if defined(USE_SFML) || defined(__EMSCRIPTEN__)
 	template<typename T>
 	location(sf::Vector2<T> other) : location(other.x, other.y) {}
 #endif
 	bool in(rectangle r) const;
-#ifdef USE_SFML
+#if defined(USE_SFML) || defined(__EMSCRIPTEN__)
 	template<typename T>
 	operator typename sf::template Vector2<T>() {
 		return sf::Vector2<T>(x,y);
 	}
 #endif
 };
+
+// Implement RenderWindow::mapPixelToCoords() for location now that location is fully defined
+#ifdef __EMSCRIPTEN__
+inline sf::Vector2f sf::RenderWindow::mapPixelToCoords(const ::location& point, const sf::View& view) const {
+	// Stub - in real implementation would transform using view
+	return sf::Vector2f(static_cast<float>(point.x), static_cast<float>(point.y));
+}
+
+inline sf::Vector2f sf::RenderWindow::mapPixelToCoords(const ::location& point) const {
+	return mapPixelToCoords(point, getDefaultView());
+}
+#endif
 
 struct loc_compare {
 	bool operator()(location a, location b) const;
@@ -79,9 +95,11 @@ struct rectangle {
 	rectangle();
 	rectangle(location tl, location br);
 	rectangle(int t, int l, int b, int r);
-#ifdef USE_SFML
+#if defined(USE_SFML) || defined(__EMSCRIPTEN__)
 	explicit rectangle(const sf::Texture& texture);
 	explicit rectangle(const sf::RenderTarget& texture);
+#endif
+#if defined(USE_SFML) || defined(__EMSCRIPTEN__)
 	template<typename T>
 	rectangle(sf::Rect<T> other) : rectangle(other.top, other.left, other.top + other.height, other.left + other.width) {}
 	template<typename T>
@@ -216,5 +234,16 @@ std::vector<location> points_containing_most(std::vector<location> points, std::
 // Find which of the given points is closest to the given anchor point.
 int closest_point_idx(std::vector<location> points, location anchor);
 location closest_point(std::vector<location> points, location anchor);
+
+// RenderTarget::mapCoordsToPixel implementations for location
+#ifdef __EMSCRIPTEN__
+inline sf::Vector2i sf::RenderTarget::mapCoordsToPixel(const ::location& point) const {
+	return sf::Vector2i(point.x, point.y);
+}
+
+inline sf::Vector2i sf::RenderTarget::mapCoordsToPixel(const ::location& point, const View& view) const {
+	return sf::Vector2i(point.x, point.y);
+}
+#endif
 
 #endif

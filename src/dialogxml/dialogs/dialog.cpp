@@ -34,7 +34,43 @@
 #include "tools/prefs.hpp"
 #include "tools/framerate_limiter.hpp"
 #include "replay.hpp"
-#include <boost/lexical_cast.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/lexical_cast.hpp>
+	#include <boost/core/ignore_unused.hpp>
+#else
+	#define BOOST_FALLTHROUGH [[fallthrough]]
+	#include <string>
+	#include <stdexcept>
+	namespace boost {
+		class bad_lexical_cast : public std::runtime_error {
+		public:
+			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
+		};
+		template<typename T, typename S>
+		T lexical_cast(const S& arg) {
+			try {
+				if constexpr (std::is_same_v<T, std::string>) {
+					if constexpr (std::is_enum_v<S>) {
+						return std::to_string(static_cast<int>(arg));
+					} else if constexpr (std::is_integral_v<S> || std::is_floating_point_v<S>) {
+						return std::to_string(arg);
+					}
+				} else if constexpr (std::is_integral_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				} else if constexpr (std::is_enum_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				}
+				throw bad_lexical_cast();
+			} catch (...) {
+				throw bad_lexical_cast();
+			}
+		}
+	}
+#endif
 
 using namespace std;
 using namespace ticpp;
@@ -1246,6 +1282,7 @@ void cDialog::setEscapeButton(std::string escbtn) {
 
 const char*const xBadVal::CONTENT = "$content$";
 
+#ifndef __EMSCRIPTEN__
 cDialogIterator::cDialogIterator() : parent(nullptr) {}
 
 cDialogIterator::cDialogIterator(cDialog* parent) : parent(parent), current(parent->controls.begin()) {}
@@ -1280,12 +1317,14 @@ void cDialogIterator::increment() {
 		parent = nullptr;
 	}
 }
+#endif
 
 void preview_dialog_xml(fs::path dialog_xml) {
 	try{
 		std::unique_ptr<DialogDefn> defn(load_dialog_defn(dialog_xml));
 		cDialog dialog(*defn);
 
+#ifndef __EMSCRIPTEN__
 		// Make every clickable control's click event close the dialog
 		for (auto control : dialog){
 			try{
@@ -1295,6 +1334,7 @@ void preview_dialog_xml(fs::path dialog_xml) {
 				});
 			}catch(...){}
 		}
+#endif
 		dialog.run();
 	}catch(std::exception& x) {
 		showError(x.what());

@@ -13,11 +13,16 @@
 #include <tuple>
 #include <vector>
 #include <string>
+#include <map>
 #include <cmath>
 
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/Text.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics/Color.hpp>
+	#include <SFML/Graphics/Text.hpp>
+	#include <SFML/Graphics/RenderTarget.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 
 #include "location.hpp"
 

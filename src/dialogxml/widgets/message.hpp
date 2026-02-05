@@ -12,10 +12,20 @@
 /// @file
 /// Message-related classes and types.
 
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+	#include <boost/optional.hpp>
+	namespace opt = boost;
+	constexpr auto nullopt = boost::none;
+#else
+	#include "compat/graphics.hpp"
+	#include <optional>
+	namespace opt = std;
+	using std::nullopt;
+	namespace boost { constexpr auto none = std::nullopt; }
+#endif
 
 #include <string>
-#include <boost/optional.hpp>
 #include "control.hpp"
 #include "gfx/render_text.hpp"
 
@@ -50,7 +60,7 @@ private:
 	short textSize;
 	eFont textFont;
 	sf::Color color;
-	std::vector<boost::optional<std::string>> keyRefs;
+	std::vector<opt::optional<std::string>> keyRefs;
 	std::string fromList;
 	bool underlined = false, fixedWidth = false, fixedHeight = false;
 	TextStyle style;

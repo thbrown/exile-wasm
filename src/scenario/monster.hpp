@@ -14,6 +14,7 @@
 #include <array>
 #include <iosfwd>
 
+#include "global.hpp"
 #include "monster_abilities.hpp"
 #include "race.hpp"
 #include "location.hpp"

@@ -9,8 +9,12 @@
 #ifndef BoE_TILING_HPP
 #define BoE_TILING_HPP
 
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics/Texture.hpp>
+	#include <SFML/Graphics/RenderTarget.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 #include "location.hpp"
 
 struct tessel_ref_t {

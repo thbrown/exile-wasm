@@ -13,7 +13,29 @@
 #include <map>
 #include <set>
 #include <sstream>
-#include <boost/lexical_cast.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/lexical_cast.hpp>
+	#define LEXICAL_CAST boost::lexical_cast
+#else
+	// C++17 fallthrough attribute
+	#define BOOST_FALLTHROUGH [[fallthrough]]
+	// Web: use std::stoi, std::to_string etc.
+	#include <stdexcept>
+	namespace {
+		template<typename T, typename S>
+		T lexical_cast(const S& arg) {
+			if constexpr (std::is_same_v<T, std::string>) {
+				return std::to_string(arg);
+			} else if constexpr (std::is_integral_v<T>) {
+				if constexpr (std::is_same_v<S, std::string>) {
+					return static_cast<T>(std::stoi(arg));
+				}
+			}
+			throw std::runtime_error("Unsupported lexical_cast");
+		}
+	}
+	#define LEXICAL_CAST lexical_cast
+#endif
 
 #include "oldstructs.hpp"
 #include "utility.hpp"

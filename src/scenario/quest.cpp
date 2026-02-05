@@ -1,5 +1,10 @@
 #include "quest.hpp"
 
+// CHECK_EQ macro for equality comparisons
+#ifndef CHECK_EQ
+	#define CHECK_EQ(other, field) if (this->field != other.field) return false
+#endif
+
 bool cQuest::operator==(const cQuest& other) {
 	CHECK_EQ(other, deadline_is_relative);
 	CHECK_EQ(other, auto_start);

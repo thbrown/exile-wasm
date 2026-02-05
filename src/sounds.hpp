@@ -9,6 +9,7 @@
 #ifndef _SOUNDTOOL_H
 #define _SOUNDTOOL_H
 
+#include "global.hpp"
 #include "compat/audio.hpp"
 #include <string>
 

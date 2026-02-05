@@ -10,7 +10,12 @@
 #define BOE_CURSORS_H
 
 #include <string>
-#include <boost/filesystem/path.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/path.hpp>
+#else
+	#include <filesystem>
+	namespace fs = std::filesystem;
+#endif
 
 enum cursor_type {
 	wand_curs = 0,

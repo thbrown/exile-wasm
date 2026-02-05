@@ -12,7 +12,14 @@
 /// @file
 /// Control-related classes and types.
 
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+	#include <boost/any.hpp>
+#else
+	#include "compat/graphics.hpp"
+	#include <any>
+	namespace boost { using std::any; using std::any_cast; }
+#endif
 
 #include <string>
 #include <exception>
@@ -20,7 +27,6 @@
 #include <set>
 #include <map>
 #include <random>
-#include <boost/any.hpp>
 #include "dialogxml/dialogs/dlogevt.hpp"
 #include "tools/framerate_limiter.hpp"
 
@@ -185,7 +191,11 @@ public:
 		auto old_handler = event_handlers[t];
 		if(handler) event_handlers[t] = handler;
 		else event_handlers[t] = nullptr;
+#ifndef __EMSCRIPTEN__
 		if(old_handler.empty()) return nullptr;
+#else
+		if(!old_handler.has_value()) return nullptr;
+#endif
 		return boost::any_cast<typename event_fcn<t>::type>(old_handler);
 	}
 	inline std::string getName() { return name; }
@@ -219,7 +229,11 @@ public:
 	/// then true is returned. This also applies if the event type is not supported by the control.
 	template<eDlogEvt t, typename... Params> typename event_fcn<t>::type::result_type triggerEvent(cDialog& dlg, Params... args) {
 		using fcn_t = typename event_fcn<t>::type;
+#ifndef __EMSCRIPTEN__
 		if(event_handlers[t].empty())
+#else
+		if(!event_handlers[t].has_value())
+#endif
 			return callHandler(fcn_t(), dlg, args...);
 		auto handler = boost::any_cast<fcn_t>(event_handlers[t]);
 		return callHandler(handler, dlg, args...);

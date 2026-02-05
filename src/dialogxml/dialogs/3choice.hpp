@@ -12,7 +12,15 @@
 #include <string>
 #include <vector>
 #include <array>
-#include <boost/optional.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/optional.hpp>
+	namespace opt = boost;
+	constexpr auto nullopt = boost::none;
+#else
+	#include <optional>
+	namespace opt = std;
+	using std::nullopt;
+#endif
 
 #include "dialogxml/keycodes.hpp"
 #include "dialogxml/dialogs/choicedlog.hpp"
@@ -30,9 +38,9 @@ struct bbtt {
 };
 
 /// Represents a preset button for use with cThreeChoice.
-typedef boost::optional<bbtt> cBasicButtonType;
+typedef opt::optional<bbtt> cBasicButtonType;
 
-namespace {cBasicButtonType null_btn = boost::none;}
+namespace {cBasicButtonType null_btn = nullopt;}
 #ifndef BTNS_DEFINED
 extern bbtt basic_buttons[71];
 #endif

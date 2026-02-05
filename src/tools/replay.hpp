@@ -4,7 +4,11 @@
 #include <string>
 #include <sstream>
 #include <map>
-#include <boost/filesystem.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem.hpp>
+#else
+	#include <filesystem>
+#endif
 #include "location.hpp"
 #include "dialogxml/keycodes.hpp"
 #include "game/boe.newgraph.hpp"

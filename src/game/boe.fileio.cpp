@@ -19,11 +19,62 @@
 #include "dialogxml/dialogs/strdlog.hpp"
 #include "fileio/fileio.hpp"
 #include "tools/cursors.hpp"
-#include <boost/filesystem.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem.hpp>
+	#include <boost/algorithm/string.hpp>
+	#include <fmt/format.h>
+#else
+	#include <filesystem>
+	#include <string>
+	namespace fs = std::filesystem;
+
+	namespace boost {
+		namespace filesystem = ::fs;
+		namespace algorithm {
+			// String algorithm stubs
+			inline void to_lower(std::string& str) {
+				for (char& c : str) c = std::tolower(c);
+			}
+			inline void trim(std::string& str) {
+				// Trim leading whitespace
+				size_t start = 0;
+				while (start < str.length() && std::isspace(str[start])) start++;
+				// Trim trailing whitespace
+				size_t end = str.length();
+				while (end > start && std::isspace(str[end - 1])) end--;
+				str = str.substr(start, end - start);
+			}
+			inline void trim_left(std::string& str) {
+				// Trim leading whitespace
+				size_t start = 0;
+				while (start < str.length() && std::isspace(str[start])) start++;
+				str = str.substr(start);
+			}
+		}
+	}
+	namespace fmt {
+		inline std::string to_str(const std::string& s) { return s; }
+		inline std::string to_str(const char* s) { return std::string(s); }
+		template<typename T>
+		inline std::string to_str(T val) { return std::to_string(val); }
+
+		inline std::string format(const std::string& fmt_str) {
+			return fmt_str;
+		}
+
+		template<typename T, typename... Args>
+		std::string format(const std::string& fmt_str, T first, Args... rest) {
+			size_t pos = fmt_str.find("{}");
+			if (pos == std::string::npos) {
+				return fmt_str;
+			}
+			std::string result = fmt_str.substr(0, pos) + to_str(first) + fmt_str.substr(pos + 2);
+			return format(result, rest...);
+		}
+	}
+#endif
 #include "replay.hpp"
 #include <sstream>
-#include <boost/algorithm/string.hpp>
-#include <fmt/format.h>
 
 #define	DONE_BUTTON_ITEM	1
 
@@ -384,7 +435,11 @@ std::vector<scen_header_type> build_scen_headers() {
 			fs::recursive_directory_iterator iter(scenDir);
 			while(iter != fs::recursive_directory_iterator()) {
 				fs::file_status stat = iter->status();
+#ifndef __EMSCRIPTEN__
 				if(stat.type() == fs::regular_file) {
+#else
+				if(stat.type() == std::filesystem::file_type::regular) {
+#endif
 					std::string extension = iter->path().extension().string();
 					boost::algorithm::to_lower(extension);
 					// Skip various data files of unpacked scenarios

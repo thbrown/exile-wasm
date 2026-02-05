@@ -28,8 +28,58 @@ const int LINES_IN_ITEM_WIN = 8;
 #include "tools/enum_map.hpp"
 #include "tools/winutil.hpp"
 #include "replay.hpp"
-#include <boost/lexical_cast.hpp>
-#include <fmt/format.h>
+#ifndef __EMSCRIPTEN__
+	#include <boost/lexical_cast.hpp>
+	#include <fmt/format.h>
+#else
+	#include <string>
+	namespace boost {
+		class bad_lexical_cast : public std::runtime_error {
+		public:
+			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
+		};
+
+		template<typename T, typename S>
+		T lexical_cast(const S& arg) {
+			try {
+				if constexpr (std::is_same_v<T, std::string>) {
+					return std::to_string(arg);
+				} else if constexpr (std::is_integral_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				} else if constexpr (std::is_enum_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				}
+				throw bad_lexical_cast();
+			} catch (...) {
+				throw bad_lexical_cast();
+			}
+		}
+	}
+	namespace fmt {
+		inline std::string to_str(const std::string& s) { return s; }
+		inline std::string to_str(const char* s) { return std::string(s); }
+		template<typename T>
+		inline std::string to_str(T val) { return std::to_string(val); }
+
+		inline std::string format(const std::string& fmt_str) {
+			return fmt_str;
+		}
+
+		template<typename T, typename... Args>
+		std::string format(const std::string& fmt_str, T first, Args... rest) {
+			size_t pos = fmt_str.find("{}");
+			if (pos == std::string::npos) {
+				return fmt_str;
+			}
+			std::string result = fmt_str.substr(0, pos) + to_str(first) + fmt_str.substr(pos + 2);
+			return format(result, rest...);
+		}
+	}
+#endif
 
 typedef struct {
 	std::string message;

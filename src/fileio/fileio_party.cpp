@@ -9,7 +9,22 @@
 #include "fileio.hpp"
 
 #include <fstream>
-#include <boost/filesystem/operations.hpp>
+#include <chrono>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/operations.hpp>
+#else
+	#include <filesystem>
+
+	// Compatibility wrapper for last_write_time
+	namespace compat_time {
+		inline std::time_t to_time_t(const std::filesystem::file_time_type& ftime) {
+			auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+				ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now()
+			);
+			return std::chrono::system_clock::to_time_t(sctp);
+		}
+	}
+#endif
 
 #include "dialogxml/dialogs/strdlog.hpp"
 #include "gzstream.h"
@@ -611,7 +626,11 @@ std::vector<std::pair<fs::path, std::time_t>> sorted_file_mtimes(fs::path dir, s
 	for(fs::directory_iterator it{dir}; it != fs::directory_iterator{}; ++it) {
 		fs::path file = *it;
 		if(valid_extensions.count(file.extension())){
+#ifndef __EMSCRIPTEN__
 			files.push_back(std::make_pair(file, last_write_time(file)));
+#else
+			files.push_back(std::make_pair(file, compat_time::to_time_t(last_write_time(file))));
+#endif
 		}
 	}
 

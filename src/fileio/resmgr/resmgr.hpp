@@ -9,8 +9,12 @@
 #ifndef BOE_RESMGR_H
 #define BOE_RESMGR_H
 
-#include <boost/filesystem/operations.hpp>
-#include <boost/filesystem/path.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/operations.hpp>
+	#include <boost/filesystem/path.hpp>
+#else
+	#include <filesystem>
+#endif
 #include <stack>
 #include <unordered_map>
 #include <memory>
@@ -18,7 +22,11 @@
 #include <vector>
 
 namespace ResMgr {
+#ifndef __EMSCRIPTEN__
 	namespace fs = boost::filesystem;
+#else
+	namespace fs = std::filesystem;
+#endif
 	
 	enum eErrorCode {
 		ERR_RESOLVE,

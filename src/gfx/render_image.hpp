@@ -13,8 +13,15 @@
 #include <memory>
 #include <vector>
 #include <functional>
-#include <boost/filesystem/path.hpp>
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/filesystem/path.hpp>
+	namespace fs = boost::filesystem;
+	#include <SFML/Graphics.hpp>
+#else
+	#include <filesystem>
+	namespace fs = std::filesystem;
+	#include "compat/graphics.hpp"
+#endif
 #include "location.hpp"
 #include "dialogxml/widgets/pictypes.hpp"
 #include "gfx/render_shapes.hpp"

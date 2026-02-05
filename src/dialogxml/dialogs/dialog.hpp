@@ -35,6 +35,7 @@
 	#include <any>
 	#include <filesystem>
 	namespace any_ns = std;
+	namespace fs = std::filesystem;
 	// iterator_facade not needed for web - disable if used
 #endif
 #include "tools/prefs.hpp"
@@ -50,6 +51,8 @@ enum eLabelPos {
 	LABEL_LEFT, LABEL_ABOVE, LABEL_RIGHT, LABEL_BELOW,
 };
 
+#ifndef __EMSCRIPTEN__
+// Iterator class requires boost::iterator_facade (not available on web)
 class cDialogIterator : public boost::iterator_facade<cDialogIterator, std::pair<std::string, cControl*>, std::forward_iterator_tag> {
 	friend class boost::iterator_core_access;
 	cDialog* parent;
@@ -63,6 +66,7 @@ protected:
 	bool equal(const cDialogIterator& other) const;
 	void increment();
 };
+#endif // __EMSCRIPTEN__
 
 cKey translate_sfml_key(sf::Event::KeyEvent);
 
@@ -150,7 +154,11 @@ public:
 	/// Check if the dialog has a result.
 	/// @return true if setResult() was called, otherwise false.
 	bool hasResult() const {
-		return !result.empty();
+#ifndef __EMSCRIPTEN__
+		return !result.empty(); // boost::any
+#else
+		return result.has_value(); // std::any
+#endif
 	}
 	/// Query the type of the result.
 	/// @tparam type The result type to query.
@@ -276,12 +284,14 @@ public:
 		p.first = p.second->getName();
 		return p;
 	}
+#ifndef __EMSCRIPTEN__
 	cDialogIterator begin() {
 		return cDialogIterator(this);
 	}
 	cDialogIterator end() {
 		return cDialogIterator();
 	}
+#endif
 	cDialog& operator=(cDialog& other) = delete;
 	cDialog(cDialog& other) = delete;
 	inline void setAnimPictFPS(int fps) { if(fps == -1) fps = 2; anim_pict_fps = fps; }

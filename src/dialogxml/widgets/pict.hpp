@@ -12,11 +12,16 @@
 /// @file
 /// Icon-related classes and types.
 
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 
 #include <vector>
 #include <map>
 #include <memory>
+#include "global.hpp"
 #include "control.hpp"
 #include "pictypes.hpp"
 

@@ -1,5 +1,9 @@
 
-#include <SFML/Graphics.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/Graphics.hpp>
+#else
+	#include "compat/graphics.hpp"
+#endif
 #include "scenario/outdoors.hpp"
 
 void force_town_enter(short which_town,location where_start);

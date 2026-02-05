@@ -8,8 +8,10 @@
 
 #include <fstream>
 #include <iostream>
-#include <SFML/Graphics.hpp>
+#include "compat/graphics.hpp"
 #include "res_cursor.hpp"
+
+using namespace ResMgr;
 
 class CursorLoader : public ResMgr::cLoader<Cursor> {
 	/// Load a cursor from a GIF file.

@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <memory>
+#include "global.hpp"
 #include "compat/texture.hpp"
 #include "location.hpp"
 

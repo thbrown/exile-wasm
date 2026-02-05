@@ -12,7 +12,15 @@
 #include <string>
 #include <vector>
 #include <functional>
-#include <boost/optional.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/optional.hpp>
+	namespace opt = boost;
+	constexpr auto nullopt = boost::none;
+#else
+	#include <optional>
+	namespace opt = std;
+	using std::nullopt;
+#endif
 #include "dialog.hpp"
 #include "dialogxml/widgets/ledgroup.hpp"
 
@@ -82,6 +90,6 @@ public:
 // Prompt the player/designer for a number, which might be an index in a given list of strings.
 // Specify cancel_value to show a cancel button, which will return the given value (for example, -1)
 // Specify extra_led and led_output to show a labeled LED which will assign led_output with its status unless the dialog is canceled
-short get_num_response(short min, short max, std::string prompt, std::vector<std::string> choice_names = {}, boost::optional<short> cancel_value = boost::none, short initial_value = 0, std::string extra_led = "", bool* led_output = nullptr);
+short get_num_response(short min, short max, std::string prompt, std::vector<std::string> choice_names = {}, opt::optional<short> cancel_value = nullopt, short initial_value = 0, std::string extra_led = "", bool* led_output = nullptr);
 
 #endif

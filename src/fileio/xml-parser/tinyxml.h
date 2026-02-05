@@ -40,6 +40,9 @@ distribution.
 #include "ticppapi.h"
 #include <cstring>
 #include <cassert>
+#include <cstdio>
+#include <cctype>
+#include <cstdlib>
 
 // Help out windows:
 #if defined( _DEBUG ) && !defined( DEBUG )

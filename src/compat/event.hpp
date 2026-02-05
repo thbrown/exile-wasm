@@ -12,8 +12,9 @@
 #ifdef __EMSCRIPTEN__
 	// Web build: Minimal event stubs
 	namespace sf {
-		// Keyboard
-		namespace Keyboard {
+		// Keyboard - using class instead of namespace to support "using kb = sf::Keyboard;"
+		class Keyboard {
+		public:
 			enum Key {
 				Unknown = -1,
 				A = 0, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
@@ -29,12 +30,21 @@
 				Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
 				F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15,
 				Pause,
-				KeyCount
+				KeyCount,
+				// Aliases for compatibility
+				Return = Enter,
+				BackSpace = Backspace
 			};
-		}
+		};
 
-		// Mouse
-		namespace Mouse {
+		// Forward declarations for Mouse
+		template<typename T> struct Vector2;
+		typedef Vector2<int> Vector2i;
+		class Window;
+
+		// Mouse - using class instead of namespace to support "using Mouse = sf::Mouse;"
+		class Mouse {
+		public:
 			enum Button {
 				Left,
 				Right,
@@ -43,7 +53,10 @@
 				XButton2,
 				ButtonCount
 			};
-		}
+
+			// Get mouse position relative to a window (implemented in graphics.hpp after Vector2 is fully defined)
+			static Vector2i getPosition(const Window& relativeTo);
+		};
 
 		// Event structure
 		struct Event {
@@ -56,6 +69,7 @@
 				KeyPressed,
 				KeyReleased,
 				MouseWheelScrolled,
+				MouseWheelMoved = MouseWheelScrolled, // Deprecated alias
 				MouseButtonPressed,
 				MouseButtonReleased,
 				MouseMoved,
@@ -91,6 +105,11 @@
 				int x, y;
 			};
 
+			struct MouseWheelEvent {
+				int delta;
+				int x, y;
+			};
+
 			EventType type;
 
 			union {
@@ -100,6 +119,7 @@
 				MouseMoveEvent mouseMove;
 				MouseButtonEvent mouseButton;
 				MouseWheelScrollEvent mouseWheelScroll;
+				MouseWheelEvent mouseWheel;
 			};
 		};
 	}

@@ -1,8 +1,73 @@
 
 #include <cmath>
 #include <queue>
-#include <boost/algorithm/string/replace.hpp>
-#include <fmt/format.h>
+#ifndef __EMSCRIPTEN__
+	#include <boost/algorithm/string/replace.hpp>
+	#include <fmt/format.h>
+#else
+	#include <string>
+	namespace boost {
+		// Replace first occurrence of search string with replace string
+		inline void replace_first(std::string& input, const std::string& search, const std::string& replace) {
+			size_t pos = input.find(search);
+			if (pos != std::string::npos) {
+				input.replace(pos, search.length(), replace);
+			}
+		}
+
+		class bad_lexical_cast : public std::runtime_error {
+		public:
+			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
+		};
+
+		template<typename T, typename S>
+		T lexical_cast(const S& arg) {
+			try {
+				if constexpr (std::is_same_v<T, std::string>) {
+					if constexpr (std::is_enum_v<S>) {
+						return std::to_string(static_cast<int>(arg));
+					} else if constexpr (std::is_integral_v<S> || std::is_floating_point_v<S>) {
+						return std::to_string(arg);
+					}
+				} else if constexpr (std::is_integral_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				} else if constexpr (std::is_enum_v<T>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return static_cast<T>(std::stoi(arg));
+					}
+				}
+				throw bad_lexical_cast();
+			} catch (...) {
+				throw bad_lexical_cast();
+			}
+		}
+	}
+
+	namespace fmt {
+		inline std::string to_str(const std::string& s) { return s; }
+		inline std::string to_str(const char* s) { return std::string(s); }
+		template<typename T>
+		inline std::string to_str(T val) { return std::to_string(val); }
+
+		inline std::string format(const std::string& fmt_str) {
+			return fmt_str;
+		}
+
+		template<typename T, typename... Args>
+		std::string format(const std::string& fmt_str, T first, Args... rest) {
+			size_t pos = fmt_str.find("{}");
+			if (pos == std::string::npos) {
+				return fmt_str;
+			}
+			std::string result = fmt_str.substr(0, pos) + to_str(first) + fmt_str.substr(pos + 2);
+			return format(result, rest...);
+		}
+	}
+
+	#define BOOST_FALLTHROUGH [[fallthrough]]
+#endif
 
 #include "boe.global.hpp"
 #include "tools/replay.hpp"
@@ -46,7 +111,9 @@
 #include "gfx/render_shapes.hpp"
 #include "tools/enum_map.hpp"
 #include <string>
-#include <boost/lexical_cast.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/lexical_cast.hpp>
+#endif
 #include <sstream>
 #include "fileio/resmgr/res_font.hpp"
 

@@ -9,7 +9,11 @@
 
 #include "button.hpp"
 
-#include <boost/algorithm/string.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <boost/algorithm/string.hpp>
+#else
+	#include "compat/boost_algorithm_string.hpp"
+#endif
 #include "dialogxml/dialogs/dialog.hpp"
 #include "gfx/render_image.hpp"
 #include "gfx/render_text.hpp"

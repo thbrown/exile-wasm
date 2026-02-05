@@ -1,8 +1,35 @@
-#include <SFML/OpenGL.hpp>
+#ifndef __EMSCRIPTEN__
+	#include <SFML/OpenGL.hpp>
+#endif
 
 #include <cstdio>
 #include <queue>
-#include <fmt/format.h>
+#ifndef __EMSCRIPTEN__
+	#include <fmt/format.h>
+#else
+	#include <string>
+	#define BOOST_FALLTHROUGH [[fallthrough]]
+	namespace fmt {
+		inline std::string to_str(const std::string& s) { return s; }
+		inline std::string to_str(const char* s) { return std::string(s); }
+		template<typename T>
+		inline std::string to_str(T val) { return std::to_string(val); }
+
+		inline std::string format(const std::string& fmt_str) {
+			return fmt_str;
+		}
+
+		template<typename T, typename... Args>
+		std::string format(const std::string& fmt_str, T first, Args... rest) {
+			size_t pos = fmt_str.find("{}");
+			if (pos == std::string::npos) {
+				return fmt_str;
+			}
+			std::string result = fmt_str.substr(0, pos) + to_str(first) + fmt_str.substr(pos + 2);
+			return format(result, rest...);
+		}
+	}
+#endif
 
 #include "boe.global.hpp"
 
@@ -1477,7 +1504,9 @@ void draw_map(bool need_refresh) {
 		
 		map_gworld().display();
 		// this stops flickering if the display time is too long
+#ifndef __EMSCRIPTEN__
 		glFlush();
+#endif
 	}
 	
 	mini_map().setActive(false);

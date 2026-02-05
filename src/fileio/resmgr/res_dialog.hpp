@@ -13,6 +13,8 @@
 #include "ticpp.h"
 #include "resmgr.hpp"
 
+using namespace ResMgr;
+
 struct DialogDefn {
 	/// The dialog's ID is the base filename without the extension
 	std::string id;
