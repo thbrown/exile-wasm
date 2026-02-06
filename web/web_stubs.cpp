@@ -9,8 +9,10 @@
 #include <filesystem>
 #include <vector>
 #include <map>
+#include <queue>
 #include <optional>
 #include <functional>
+#include <emscripten.h>
 #include "fileio/xml-parser/ticpp.h"
 #include "compat/graphics.hpp"
 #include "location.hpp"
@@ -25,6 +27,84 @@
 #include "dialogxml/widgets/control.hpp"
 #include "tools/event_listener.hpp"
 #include "tools/drawable.hpp"
+
+// ============================================================
+// Event queue for bridging JavaScript browser events to C++
+// ============================================================
+static std::queue<sf::Event> g_web_event_queue;
+
+// Forward declare keymods_t and kb (defined later in this file)
+#include "tools/keymods.hpp"
+extern keymods_t kb;
+
+// Mouse event type constants (must match events.js)
+enum WebMouseEventType { MOUSE_PRESSED = 0, MOUSE_RELEASED = 1, MOUSE_MOVED = 2 };
+// Key event type constants (must match events.js)
+enum WebKeyEventType { KEY_PRESSED_WEB = 0, KEY_RELEASED_WEB = 1, KEY_TEXT_WEB = 2 };
+
+// Forward declare cDialog to access topWindow for coordinate adjustment
+class cDialog;
+
+extern "C" {
+
+EMSCRIPTEN_KEEPALIVE
+void push_mouse_event(int type, int x, int y, int button) {
+	sf::Event evt;
+	switch(type) {
+		case MOUSE_PRESSED:
+			evt.type = sf::Event::MouseButtonPressed;
+			evt.mouseButton.button = static_cast<sf::Mouse::Button>(button);
+			evt.mouseButton.x = x;
+			evt.mouseButton.y = y;
+			break;
+		case MOUSE_RELEASED:
+			evt.type = sf::Event::MouseButtonReleased;
+			evt.mouseButton.button = static_cast<sf::Mouse::Button>(button);
+			evt.mouseButton.x = x;
+			evt.mouseButton.y = y;
+			break;
+		case MOUSE_MOVED:
+			evt.type = sf::Event::MouseMoved;
+			evt.mouseMove.x = x;
+			evt.mouseMove.y = y;
+			break;
+		default:
+			return;
+	}
+	g_web_event_queue.push(evt);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void push_key_event(int type, int keyCode, int shift, int ctrl, int alt) {
+	sf::Event evt;
+	switch(type) {
+		case KEY_PRESSED_WEB:
+			evt.type = sf::Event::KeyPressed;
+			evt.key.code = static_cast<sf::Keyboard::Key>(keyCode);
+			evt.key.shift = (shift != 0);
+			evt.key.control = (ctrl != 0);
+			evt.key.alt = (alt != 0);
+			evt.key.system = false;
+			break;
+		case KEY_RELEASED_WEB:
+			evt.type = sf::Event::KeyReleased;
+			evt.key.code = static_cast<sf::Keyboard::Key>(keyCode);
+			evt.key.shift = (shift != 0);
+			evt.key.control = (ctrl != 0);
+			evt.key.alt = (alt != 0);
+			evt.key.system = false;
+			break;
+		case KEY_TEXT_WEB:
+			evt.type = sf::Event::TextEntered;
+			evt.text.unicode = static_cast<uint32_t>(keyCode);
+			break;
+		default:
+			return;
+	}
+	g_web_event_queue.push(evt);
+}
+
+} // extern "C"
 
 namespace fs = std::filesystem;
 
@@ -253,10 +333,37 @@ bool has_next_action(std::string expected_type) {
 	return false;
 }
 
-// Event polling function
+// Event polling function - dequeues from the web event queue
 bool pollEvent(sf::Window& window, sf::Event& event) {
-	// Stub - would poll for window events
-	return false;
+	if(g_web_event_queue.empty()) return false;
+	event = g_web_event_queue.front();
+	g_web_event_queue.pop();
+
+	// Track modifier keys
+	if(event.type == sf::Event::KeyPressed || event.type == sf::Event::KeyReleased) {
+		if(kb.handleModifier(event)) return false; // consume pure modifier events
+	}
+
+	// Adjust mouse coordinates when a dialog is active (subtract draw offset)
+	if(event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::MouseButtonReleased) {
+		auto& win = dynamic_cast<sf::RenderWindow&>(window);
+		int offX = win.getDrawOffsetX();
+		int offY = win.getDrawOffsetY();
+		if(offX != 0 || offY != 0) {
+			event.mouseButton.x -= offX;
+			event.mouseButton.y -= offY;
+		}
+	} else if(event.type == sf::Event::MouseMoved) {
+		auto& win = dynamic_cast<sf::RenderWindow&>(window);
+		int offX = win.getDrawOffsetX();
+		int offY = win.getDrawOffsetY();
+		if(offX != 0 || offY != 0) {
+			event.mouseMove.x -= offX;
+			event.mouseMove.y -= offY;
+		}
+	}
+
+	return true;
 }
 
 // Global background array (defined in tiling.hpp)
@@ -266,9 +373,120 @@ tessel_ref_t bg[256];
 int replay_fps_limit = 30;
 fs::path log_file;
 
-// Rendering functions
+// Tiling pattern storage
+struct TesselData {
+	std::string filename;
+	int srcX, srcY, srcW, srcH;
+};
+static std::map<int, TesselData> g_tessel_map;
+static int g_next_tessel_key = 1;
+
+tessel_ref_t prepareForTiling(sf::Texture& srcImg, rectangle srcRect) {
+	tessel_ref_t ref;
+	ref.key = g_next_tessel_key++;
+	TesselData data;
+	data.filename = srcImg.getFilename();
+	data.srcX = srcRect.left;
+	data.srcY = srcRect.top;
+	data.srcW = srcRect.right - srcRect.left;
+	data.srcH = srcRect.bottom - srcRect.top;
+	g_tessel_map[ref.key] = data;
+	return ref;
+}
+
+// Rendering functions - tile a pattern texture across a rectangle
 void tileImage(sf::RenderTarget& target, rectangle rect, tessel_ref_t tessel_ref, sf::BlendMode mode) {
-	// Stub - would tile a pattern texture
+	auto it = g_tessel_map.find(tessel_ref.key);
+	if(it == g_tessel_map.end()) {
+		// No tessel data - draw a solid dark fill as fallback
+		int dstX = rect.left;
+		int dstY = rect.top;
+		int dstW = rect.right - rect.left;
+		int dstH = rect.bottom - rect.top;
+		EM_ASM_({
+			var ctx = Module.canvas.getContext('2d');
+			ctx.fillStyle = 'rgb(66, 66, 66)';
+			ctx.fillRect($0, $1, $2, $3);
+		}, dstX, dstY, dstW, dstH);
+		return;
+	}
+
+	const TesselData& td = it->second;
+
+	// Get draw offset from the RenderWindow if possible
+	int offX = 0, offY = 0;
+	auto* rw = dynamic_cast<sf::RenderWindow*>(&target);
+	if(rw) {
+		offX = rw->getDrawOffsetX();
+		offY = rw->getDrawOffsetY();
+	}
+
+	// Pre-compute values to pass to JS (EM_ASM_ has limited arg count)
+	int dstX = rect.left + offX;
+	int dstY = rect.top + offY;
+	int dstW = rect.right - rect.left;
+	int dstH = rect.bottom - rect.top;
+
+	// Use EM_JS-style approach: pack all 9 args by storing source info first
+	// EM_ASM_ has trouble with commas in JS object literals, so use array notation
+	EM_ASM_({
+		if(!Module._tileArgs) Module._tileArgs = [];
+		Module._tileArgs[0] = $0;
+		Module._tileArgs[1] = $1;
+		Module._tileArgs[2] = $2;
+		Module._tileArgs[3] = $3;
+	}, td.srcX, td.srcY, td.srcW, td.srcH);
+
+	// Then do the actual tiling with dest info + filename
+	EM_ASM_({
+		var ctx = Module.canvas.getContext('2d');
+		var filename = UTF8ToString($0);
+		var dstX = $1;
+		var dstY = $2;
+		var dstW = $3;
+		var dstH = $4;
+		var srcX = Module._tileArgs[0];
+		var srcY = Module._tileArgs[1];
+		var srcW = Module._tileArgs[2];
+		var srcH = Module._tileArgs[3];
+
+		if(!Module.textureCache) Module.textureCache = {};
+		if(!Module.textureCache[filename]) {
+			try {
+				var data = FS.readFile(filename);
+				var blob = new Blob([data]);
+				var url = URL.createObjectURL(blob);
+				var img = new Image();
+				img.src = url;
+				Module.textureCache[filename] = img;
+			} catch(e) {
+				ctx.fillStyle = 'rgb(66, 66, 66)';
+				ctx.fillRect(dstX, dstY, dstW, dstH);
+				return;
+			}
+		}
+
+		var img = Module.textureCache[filename];
+		if(img.complete && img.naturalWidth > 0 && srcW > 0 && srcH > 0) {
+			if(!Module.tileCanvas) {
+				Module.tileCanvas = document.createElement('canvas');
+			}
+			Module.tileCanvas.width = srcW;
+			Module.tileCanvas.height = srcH;
+			var tileCtx = Module.tileCanvas.getContext('2d');
+			tileCtx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+
+			var pattern = ctx.createPattern(Module.tileCanvas, 'repeat');
+			ctx.save();
+			ctx.translate(dstX, dstY);
+			ctx.fillStyle = pattern;
+			ctx.fillRect(0, 0, dstW, dstH);
+			ctx.restore();
+		} else {
+			ctx.fillStyle = 'rgb(66, 66, 66)';
+			ctx.fillRect(dstX, dstY, dstW, dstH);
+		}
+	}, td.filename.c_str(), dstX, dstY, dstW, dstH);
 }
 
 // Menu functions
@@ -353,21 +571,35 @@ void display_pc(short mode, short pc_num, cDialog* parent) {}
 void display_alchemy(bool mode, cDialog* parent) {}
 void menu_activate() {}
 
-// Keyboard modifiers
-struct keymods_t {
-	bool isShiftPressed() const;
-	bool isSystemPressed() const;
-	bool isCtrlPressed() const;
-	bool isMetaPressed() const;
-	bool isAltPressed() const;
-	void flushModifiers();
-};
+// Keyboard modifier implementations (keymods_t declared in keymods.hpp, included above)
 
-bool keymods_t::isShiftPressed() const { return false; }
-bool keymods_t::isSystemPressed() const { return false; }
-bool keymods_t::isCtrlPressed() const { return false; }
-bool keymods_t::isMetaPressed() const { return false; }
-bool keymods_t::isAltPressed() const { return false; }
+bool keymods_t::isShiftPressed() const { return shift; }
+bool keymods_t::isSystemPressed() const { return ctrl; }
+bool keymods_t::isCtrlPressed() const { return ctrl; }
+bool keymods_t::isMetaPressed() const { return meta; }
+bool keymods_t::isAltPressed() const { return alt; }
+bool keymods_t::isUpPressed() const { return up; }
+bool keymods_t::isDownPressed() const { return down; }
+bool keymods_t::isLeftPressed() const { return left; }
+bool keymods_t::isRightPressed() const { return right; }
+
+bool keymods_t::handleModifier(const sf::Event& evt) {
+	if(evt.type != sf::Event::KeyPressed && evt.type != sf::Event::KeyReleased) return false;
+	using Key = sf::Keyboard::Key;
+	bool newState = evt.type == sf::Event::KeyPressed;
+	switch(evt.key.code) {
+		case Key::LShift: case Key::RShift: shift = newState; break;
+		case Key::LAlt: case Key::RAlt: alt = newState; break;
+		case Key::LControl: case Key::RControl: ctrl = newState; break;
+		case Key::LSystem: case Key::RSystem: meta = newState; break;
+		case Key::Left: left = newState; return false;
+		case Key::Right: right = newState; return false;
+		case Key::Up: up = newState; return false;
+		case Key::Down: down = newState; return false;
+		default: return false;
+	}
+	return true;
+}
 
 keymods_t kb;
 
@@ -402,7 +634,49 @@ void makeFrontWindow(sf::Window& win) {}
 
 // Initialization functions
 void set_up_apple_events() {}
-void init_tiling() {}
+void init_tiling() {
+	// Set up background tile patterns for dialogs
+	// This mirrors the desktop init_tiling() from tiling.cpp
+	static const location pat_offs[17] = {
+		{0,3}, {1,1}, {2,1}, {2,0},
+		{3,0}, {3,1}, {1,3}, {0,0},
+		{0,2}, {1,2}, {0,1}, {2,2},
+		{2,3}, {3,2}, {1,0}, {4,0}, {3,3}
+	};
+	static const int pat_i[17] = {
+		2, 3, 4, 5, 6, 8, 9, 10,
+		11,12,13,14,15,16,17,19,20
+	};
+	rectangle bg_rects[21];
+	for(short i = 0; i < 17; i++){
+		bg_rects[pat_i[i]] = {0,0,64,64};
+		bg_rects[pat_i[i]].offset(64 * pat_offs[i].x,64 * pat_offs[i].y);
+	}
+	rectangle tmp_rect = bg_rects[19];
+	tmp_rect.offset(0, 64);
+	bg_rects[0] = bg_rects[1] = bg_rects[18] = bg_rects[7] = tmp_rect;
+	bg_rects[0].right -= 32;
+	bg_rects[0].bottom -= 32;
+	bg_rects[1].left += 32;
+	bg_rects[1].bottom -= 32;
+	bg_rects[18].right -= 32;
+	bg_rects[18].top += 32;
+	bg_rects[7].left += 32;
+	bg_rects[7].top += 32;
+
+	sf::Texture& bg_gworld = *ResMgr::graphics.get("pixpats");
+	sf::Texture& bw_gworld = *ResMgr::graphics.get("bwpats");
+
+	rectangle bw_rect = {0,0,8,8};
+	for(int i = 0; i < 21; i++) {
+		if(i < 6) {
+			bw_pats[i] = prepareForTiling(bw_gworld, bw_rect);
+			bw_rect.offset(8,0);
+		}
+		bg[i] = prepareForTiling(bg_gworld, bg_rects[i]);
+	}
+	std::cerr << "init_tiling: Initialized " << g_tessel_map.size() << " tile patterns" << std::endl;
+}
 void init_fileio() {}
 void init_spell_menus() {}
 
@@ -535,21 +809,34 @@ std::string get_string_pref(std::string key, std::string defaultVal) {
 }
 
 // Keyboard modifier flush
-void keymods_t::flushModifiers() {}
+void keymods_t::flushModifiers() {
+	shift = false;
+	ctrl = false;
+	alt = false;
+	meta = false;
+}
 
 // Modal session for dialogs
+// ModalSession is declared in winutil.hpp but we can't include it here
+// due to the non-inline systemKey global. Instead we redefine the class
+// with the same layout to provide implementations.
 class ModalSession {
+	void* session;
+	sf::Window* parent;
 public:
+	void pumpEvents();
 	ModalSession(sf::Window& win, sf::Window& parent);
 	~ModalSession();
 };
 
-ModalSession::ModalSession(sf::Window& win, sf::Window& parent) {}
+ModalSession::ModalSession(sf::Window& win, sf::Window& par) : session(nullptr), parent(&par) {}
 ModalSession::~ModalSession() {}
+void ModalSession::pumpEvents() {}
 
 // Event polling overload
 bool pollEvent(sf::Window* window, sf::Event& event) {
-	return false;
+	if(window == nullptr) return false;
+	return pollEvent(*window, event);
 }
 
 // Key from action

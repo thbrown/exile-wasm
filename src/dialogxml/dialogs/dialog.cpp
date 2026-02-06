@@ -38,6 +38,7 @@
 	#include <boost/lexical_cast.hpp>
 	#include <boost/core/ignore_unused.hpp>
 #else
+	#include <emscripten.h>
 	#define BOOST_FALLTHROUGH [[fallthrough]]
 	#include <string>
 	#include <stdexcept>
@@ -542,8 +543,6 @@ void cDialog::run(std::function<void(cDialog&)> onopen){
 	cDialog* formerTop = topWindow;
 
 	sf::RenderWindow* parentWin = &(parent ? parent->win : mainPtr());
-	auto parentPos = parentWin->getPosition();
-	auto parentSz = parentWin->getSize();
 	cursor_type former_curs = Cursor::current;
 	dialogNotToast = true;
 	set_cursor(sword_curs);
@@ -558,6 +557,42 @@ void cDialog::run(std::function<void(cDialog&)> onopen){
 			currentFocus = iter->first;
 		}
 	}
+
+#ifdef __EMSCRIPTEN__
+	// WASM: Render dialog as overlay on the shared canvas
+	// Calculate centered position on the 800x600 canvas
+	int dialogX = (800 - winRect.width()) / 2;
+	int dialogY = (600 - winRect.height()) / 2;
+	if(dialogX < 0) dialogX = 0;
+	if(dialogY < 0) dialogY = 0;
+
+	// Use the main window but set a draw offset so controls render at the right position
+	win.setDrawOffset(dialogX, dialogY);
+	// Set size so controls know the dialog dimensions
+	win.setSize(sf::Vector2u(winRect.width(), winRect.height()));
+
+	animTimer.restart();
+	has_focus = true;
+	topWindow = this;
+
+	draw();
+
+	// Run the static onOpen event first
+	if(cDialog::onOpen) cDialog::onOpen(*this);
+	// Run this dialog's onOpen event
+	if(onopen) onopen(*this);
+
+	// ASYNCIFY allows this blocking call to yield to the browser
+	handle_events();
+
+	// Clean up draw offset
+	win.setDrawOffset(0, 0);
+	set_cursor(former_curs);
+	topWindow = formerTop;
+	if(cDialog::onClose) cDialog::onClose(*this);
+#else
+	auto parentPos = parentWin->getPosition();
+	auto parentSz = parentWin->getSize();
 	// Make sure the requested size isn't insane.
 	auto desktop = sf::VideoMode::getDesktopMode();
 	if(winRect.width() > desktop.width * 1.5 || winRect.height() > desktop.height * 1.5) {
@@ -599,6 +634,7 @@ void cDialog::run(std::function<void(cDialog&)> onopen){
 	topWindow = formerTop;
 	stackWindowsCorrectly();
 	if(cDialog::onClose) cDialog::onClose(*this);
+#endif
 }
 
 void cDialog::runWithHelp(short help1, short help2, bool help_forced) {
@@ -1182,26 +1218,50 @@ xBadVal::~xBadVal() throw(){
 bool cDialog::defaultDoAnimations = false;
 
 void cDialog::draw(){
+#ifdef __EMSCRIPTEN__
+	// WASM: Draw a semi-transparent dark overlay to dim the game behind the dialog
+	EM_ASM({
+		var ctx = Module.canvas.getContext('2d');
+		ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+		ctx.fillRect(0, 0, 800, 600);
+	});
+
+	// Draw the tiled background pattern for the dialog area
+	tileImage(win, winRect, ::bg[bg]);
+
+	if(doAnimations && animTimer.getElapsedTime().asMilliseconds() >= (1000 / anim_pict_fps)) {
+		cPict::advanceAnim();
+		animTimer.restart();
+	}
+
+	// Draw all controls (they use win.draw() which applies drawOffset automatically)
+	ctrlIter iter = controls.begin();
+	while(iter != controls.end()){
+		iter->second->draw();
+		iter++;
+	}
+#else
 	win.setActive(false);
 	tileImage(win,winRect,::bg[bg]);
 	if(doAnimations && animTimer.getElapsedTime().asMilliseconds() >= (1000 / anim_pict_fps)) {
 		cPict::advanceAnim();
 		animTimer.restart();
 	}
-	
+
 	// Scale dialogs:
 	sf::View view = win.getDefaultView();
 	view.setViewport(sf::FloatRect(0, 0, get_ui_scale(), get_ui_scale()));
 	win.setView(view);
-	
+
 	ctrlIter iter = controls.begin();
 	while(iter != controls.end()){
 		iter->second->draw();
 		iter++;
 	}
-	
+
 	win.setActive();
 	win.display();
+#endif
 }
 
 cControl& cDialog::operator[](std::string id){

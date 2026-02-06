@@ -349,16 +349,12 @@ int main(int argc, char* argv[]) {
 		init_boe(argc, argv);
 #ifdef __EMSCRIPTEN__
 		std::cout << "init_boe() completed" << std::endl;
-		std::cout << "Skipping welcome/tip dialogs for web (they block)..." << std::endl;
-		// Skip modal dialogs for web - they block the event loop
-		set_pref("GameRunBefore", true);
-#else
+#endif
 		if(!get_bool_pref("GameRunBefore"))
 			showWelcome();
 		else if(get_bool_pref("GiveIntroHint", true))
 			tip_of_day();
 		set_pref("GameRunBefore", true);
-#endif
 		finished_init = true;
 
 #ifdef __EMSCRIPTEN__

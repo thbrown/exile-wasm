@@ -140,7 +140,7 @@ INCLUDES=(
 EMCC_FLAGS=(
     "-sWASM=1"
     "-sALLOW_MEMORY_GROWTH=1"
-    "-sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\"]"
+    "-sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_push_mouse_event\",\"_push_key_event\"]"
     "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\"]"
     "-sNO_EXIT_RUNTIME=1"
     "-sSTRICT=0"
@@ -151,6 +151,8 @@ EMCC_FLAGS=(
     "-g"
     "-std=c++17"
     "-lembind"
+    "-sASYNCIFY"
+    "-sASYNCIFY_STACK_SIZE=65536"
 )
 
 echo "Step 1: Compiling with universe.cpp..."
@@ -167,14 +169,18 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "✅ Build successful!"
     echo ""
-    echo "Files generated:"
-    ls -lh "$BUILD_DIR/boe_minimal."{wasm,js,html}
+
+    # Copy events.js to build directory
+    cp "$WEB_DIR/events.js" "$BUILD_DIR/events.js"
+    echo "Copied events.js to $BUILD_DIR"
+
+    # Inject events.js script tag into generated HTML (before boe_minimal.js)
+    sed -i 's|<script async type="text/javascript" src="boe_minimal.js"></script>|<script type="text/javascript" src="events.js"></script>\n    <script async type="text/javascript" src="boe_minimal.js"></script>|' "$BUILD_DIR/boe_minimal.html"
+    echo "Injected events.js into HTML"
+
     echo ""
-    echo "Next steps:"
-    echo "  1. Test this build works"
-    echo "  2. Add universe.cpp and see what breaks"
-    echo "  3. Add graphics system and identify SFML dependencies"
-    echo "  4. Document all porting blockers"
+    echo "Files generated:"
+    ls -lh "$BUILD_DIR/boe_minimal."{wasm,js,html} "$BUILD_DIR/events.js"
     echo ""
     echo "To test:"
     echo "  cd $BUILD_DIR && python -m http.server 8081"

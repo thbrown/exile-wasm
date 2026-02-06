@@ -512,10 +512,17 @@
 		class RenderWindow : public Window, public RenderTarget {
 		private:
 			Color clearColor_{0, 0, 0};
+			int drawOffsetX_ = 0;
+			int drawOffsetY_ = 0;
 		public:
 			RenderWindow() {}
 			RenderWindow(unsigned int width, unsigned int height, const std::string& title)
 				: Window(width, height, title) {}
+
+			// Draw offset for rendering dialogs at a position on the shared canvas
+			void setDrawOffset(int x, int y) { drawOffsetX_ = x; drawOffsetY_ = y; }
+			int getDrawOffsetX() const { return drawOffsetX_; }
+			int getDrawOffsetY() const { return drawOffsetY_; }
 
 			Vector2u getSize() const override { return Vector2u(width_, height_); }
 
@@ -574,22 +581,12 @@
 					auto color = sprite->getColor();
 					const Texture* tex = sprite->getTexture();
 
+					// Apply draw offset for dialog overlay rendering
+					float drawX = pos.x + drawOffsetX_;
+					float drawY = pos.y + drawOffsetY_;
+
 					float w = texRect.width * scale.x;
 					float h = texRect.height * scale.y;
-
-					// Deduplication disabled - let all sprites through
-					// Log every sprite draw for debugging
-					static int total_draws = 0;
-					if(total_draws < 20) {
-						std::cout << "DRAW #" << total_draws << ": pos=(" << pos.x << "," << pos.y << ") "
-						          << "texRect=(" << texRect.left << "," << texRect.top << ","
-						          << texRect.width << "," << texRect.height << ") "
-						          << "scale=(" << scale.x << "," << scale.y << ") "
-						          << "dest=(" << w << "x" << h << ")";
-						if(tex) std::cout << " tex=" << tex->getFilename();
-						std::cout << std::endl;
-					}
-					total_draws++;
 
 					// Draw using texture if available, otherwise colored rect
 					if(tex && !tex->getFilename().empty()) {
@@ -597,13 +594,11 @@
 							var ctx = Module.canvas.getContext('2d');
 							var filename = UTF8ToString($0);
 
-							// Load texture if not cached
 							if (!Module.textureCache) {
 								Module.textureCache = {};
 							}
 
 							if (!Module.textureCache[filename]) {
-								// Try to load from VFS
 								try {
 									var data = FS.readFile(filename);
 									var blob = new Blob([data]);
@@ -611,10 +606,7 @@
 									var img = new Image();
 									img.src = url;
 									Module.textureCache[filename] = img;
-									console.log('Loaded texture on-demand: ' + filename);
 								} catch(e) {
-									console.error('Failed to load texture: ' + filename + ' - ' + e);
-									// Draw red error rect
 									ctx.fillStyle = 'red';
 									ctx.fillRect($1, $2, $7, $8);
 									return;
@@ -623,7 +615,6 @@
 
 							var img = Module.textureCache[filename];
 							if (img.complete && img.naturalWidth > 0) {
-								// Use texture rect exactly as specified - game code has correct pixel coordinates
 								ctx.drawImage(img, $3, $4, $5, $6, $1, $2, $7, $8);
 							} else {
 								ctx.fillStyle = 'yellow';
@@ -631,11 +622,10 @@
 								ctx.strokeStyle = 'black';
 								ctx.strokeRect($1, $2, $7, $8);
 							}
-						}, tex->getFilename().c_str(), pos.x, pos.y,
+						}, tex->getFilename().c_str(), drawX, drawY,
 						   texRect.left, texRect.top, texRect.width, texRect.height,
 						   w, h);
 					} else {
-						// No texture - draw colored rect for debugging
 						EM_ASM_({
 							var ctx = Module.canvas.getContext('2d');
 							ctx.fillStyle = 'magenta';
@@ -643,7 +633,7 @@
 							ctx.strokeStyle = 'white';
 							ctx.lineWidth = 1;
 							ctx.strokeRect($0, $1, $2, $3);
-						}, pos.x, pos.y, w, h);
+						}, drawX, drawY, w, h);
 					}
 					return;
 				}
@@ -657,6 +647,10 @@
 					auto color = text->getFillColor();
 
 					if(str.empty()) return;
+
+					// Apply draw offset for dialog overlay rendering
+					float drawX = pos.x + drawOffsetX_;
+					float drawY = pos.y + drawOffsetY_;
 
 					EM_ASM_({
 						var ctx = Module.canvas.getContext('2d');
@@ -673,7 +667,24 @@
 						ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (a/255) + ')';
 						ctx.textBaseline = 'top';
 						ctx.fillText(text, x, y);
-					}, str.c_str(), pos.x, pos.y, size, color.r, color.g, color.b, color.a);
+					}, str.c_str(), drawX, drawY, size, color.r, color.g, color.b, color.a);
+					return;
+				}
+
+				// Handle RectangleShape rendering (used for dialog overlays)
+				const RectangleShape* rectShape = dynamic_cast<const RectangleShape*>(&drawable);
+				if(rectShape) {
+					auto pos = rectShape->getPosition();
+					auto sz = rectShape->getSize();
+					auto fillClr = rectShape->getFillColor();
+					float drawX = pos.x + drawOffsetX_;
+					float drawY = pos.y + drawOffsetY_;
+
+					EM_ASM_({
+						var ctx = Module.canvas.getContext('2d');
+						ctx.fillStyle = 'rgba(' + $2 + ',' + $3 + ',' + $4 + ',' + ($5/255) + ')';
+						ctx.fillRect($0, $1, $6, $7);
+					}, drawX, drawY, fillClr.r, fillClr.g, fillClr.b, fillClr.a, sz.x, sz.y);
 					return;
 				}
 				#endif

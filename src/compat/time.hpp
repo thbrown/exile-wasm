@@ -12,6 +12,7 @@
 #ifdef __EMSCRIPTEN__
 	// Web build: Simple time implementation
 	#include <chrono>
+	#include <emscripten.h>
 
 	namespace sf {
 		class Time {
@@ -85,10 +86,11 @@
 			}
 		};
 
-		// Sleep function (stub for web builds)
+		// Sleep function - yields to browser event loop via ASYNCIFY
 		inline void sleep(Time duration) {
-			// Stub - in real web implementation would use emscripten_sleep
-			// For now, just do nothing
+			int ms = duration.asMilliseconds();
+			if(ms <= 0) ms = 1; // Must yield at least 1ms
+			emscripten_sleep(ms);
 		}
 
 		// Free function aliases for convenience
