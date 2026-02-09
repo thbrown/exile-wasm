@@ -148,6 +148,8 @@ EMCC_FLAGS=(
     "-DTIXML_USE_TICPP"
     "--preload-file"
     "data@/data"
+    "--preload-file"
+    "rsrc/scenarios@/Blades of Exile Scenarios"
     "-g"
     "-std=c++17"
     "-lembind"

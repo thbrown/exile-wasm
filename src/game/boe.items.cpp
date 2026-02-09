@@ -29,35 +29,8 @@
 	#include <boost/lexical_cast.hpp>
 	#include <fmt/format.h>
 #else
-	// Compatibility wrappers
+	#include "compat/boost_compat.hpp"
 	#define BOOST_FALLTHROUGH [[fallthrough]]
-
-	namespace boost {
-		class bad_lexical_cast : public std::runtime_error {
-		public:
-			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
-		};
-
-		template<typename T, typename S>
-		T lexical_cast(const S& arg) {
-			try {
-				if constexpr (std::is_same_v<T, std::string>) {
-					return std::to_string(arg);
-				} else if constexpr (std::is_integral_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				} else if constexpr (std::is_enum_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				}
-				throw bad_lexical_cast();
-			} catch (...) {
-				throw bad_lexical_cast();
-			}
-		}
-	}
 
 	// Simple fmt::format replacement for web builds
 	namespace fmt {

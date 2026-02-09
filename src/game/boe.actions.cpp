@@ -5,45 +5,7 @@
 	#include <boost/algorithm/string/replace.hpp>
 	#include <fmt/format.h>
 #else
-	#include <string>
-	namespace boost {
-		// Replace first occurrence of search string with replace string
-		inline void replace_first(std::string& input, const std::string& search, const std::string& replace) {
-			size_t pos = input.find(search);
-			if (pos != std::string::npos) {
-				input.replace(pos, search.length(), replace);
-			}
-		}
-
-		class bad_lexical_cast : public std::runtime_error {
-		public:
-			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
-		};
-
-		template<typename T, typename S>
-		T lexical_cast(const S& arg) {
-			try {
-				if constexpr (std::is_same_v<T, std::string>) {
-					if constexpr (std::is_enum_v<S>) {
-						return std::to_string(static_cast<int>(arg));
-					} else if constexpr (std::is_integral_v<S> || std::is_floating_point_v<S>) {
-						return std::to_string(arg);
-					}
-				} else if constexpr (std::is_integral_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				} else if constexpr (std::is_enum_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				}
-				throw bad_lexical_cast();
-			} catch (...) {
-				throw bad_lexical_cast();
-			}
-		}
-	}
+	#include "compat/boost_compat.hpp"
 
 	namespace fmt {
 		inline std::string to_str(const std::string& s) { return s; }

@@ -19,10 +19,10 @@
 	constexpr auto nullopt = boost::none;
 #else
 	#include "compat/graphics.hpp"
+	#include "compat/boost_compat.hpp"
 	#include <optional>
 	namespace opt = std;
 	using std::nullopt;
-	namespace boost { constexpr auto none = std::nullopt; }
 #endif
 
 #include <string>

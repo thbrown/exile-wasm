@@ -570,6 +570,10 @@ bool check_autosave_trigger(std::string reason) {
 }
 
 void try_auto_save(std::string reason) {
+#ifdef __EMSCRIPTEN__
+	// Autosave disabled for WASM builds (filesystem operations not yet supported)
+	return;
+#endif
 	if(!get_bool_pref("Autosave", true)) return;
 	if(!check_autosave_trigger(reason)) return;
 	if(univ.file.empty()){

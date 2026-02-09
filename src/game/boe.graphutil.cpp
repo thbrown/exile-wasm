@@ -64,11 +64,11 @@ void draw_one_terrain_spot (short i,short j,short terrain_to_draw) {
 	rectangle source_rect;
 	std::shared_ptr<const sf::Texture> source_gworld;
 	location l;
-	
+
 	l.x = i; l.y = j;
 	if(supressing_some_spaces && (l != ok_space[0]) && (l != ok_space[1]) && (l != ok_space[2]) && (l != ok_space[3]))
 		return;
-	
+
 	where_draw = calc_rect(i,j);
  	where_draw.offset(13,13);
  	if(terrain_to_draw == -1) {
@@ -101,7 +101,7 @@ void draw_one_terrain_spot (short i,short j,short terrain_to_draw) {
 		terrain_to_draw %= 50;
 		source_rect = calc_rect(terrain_to_draw % 10, terrain_to_draw / 10);
 	}
-	
+
 	rect_draw_some_item(*source_gworld, source_rect, terrain_screen_gworld(), where_draw);
 }
 

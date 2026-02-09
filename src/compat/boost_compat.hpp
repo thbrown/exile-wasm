@@ -83,6 +83,25 @@ namespace boost {
 
 	// String algorithm functions
 	namespace algorithm {
+		inline void trim(std::string& str) {
+			auto start = str.find_first_not_of(" \t\n\r");
+			auto end = str.find_last_not_of(" \t\n\r");
+			if (start == std::string::npos) {
+				str.clear();
+			} else {
+				str = str.substr(start, end - start + 1);
+			}
+		}
+
+		inline void trim_right(std::string& str) {
+			auto end = str.find_last_not_of(" \t\n\r");
+			if (end == std::string::npos) {
+				str.clear();
+			} else {
+				str = str.substr(0, end + 1);
+			}
+		}
+
 		inline bool starts_with(const std::string& str, const std::string& prefix) {
 			return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
 		}
@@ -129,6 +148,14 @@ namespace boost {
 			return input;
 		}
 	}
+
+	// Expose commonly used algorithm functions at boost:: level
+	// (some code calls boost::replace_first instead of boost::algorithm::replace_first)
+	using algorithm::trim;
+	using algorithm::trim_right;
+	using algorithm::replace_all;
+	using algorithm::replace_first;
+	using algorithm::erase_all;
 
 	// Note: boost::any is aliased to std::any in control.hpp for web builds
 	// std::any doesn't have empty(), it has has_value() instead

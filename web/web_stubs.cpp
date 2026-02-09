@@ -33,6 +33,9 @@
 // ============================================================
 static std::queue<sf::Event> g_web_event_queue;
 
+// Flag to request redraw when textures finish loading
+static bool g_needs_redraw = false;
+
 // Forward declare keymods_t and kb (defined later in this file)
 #include "tools/keymods.hpp"
 extern keymods_t kb;
@@ -102,6 +105,11 @@ void push_key_event(int type, int keyCode, int shift, int ctrl, int alt) {
 			return;
 	}
 	g_web_event_queue.push(evt);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void request_redraw() {
+	g_needs_redraw = true;
 }
 
 } // extern "C"
@@ -707,6 +715,14 @@ void init_directories(const char* exec_path) {
 	scenDir = tempDir / "Scenarios";
 	replayDir = tempDir / "Replays";
 	saveDir = tempDir / "Saves";
+
+	// Create VFS directories so fs::create_directories() calls don't fail
+	EM_ASM({
+		try { FS.mkdir('/temp'); } catch(e) {}
+		try { FS.mkdir('/temp/Scenarios'); } catch(e) {}
+		try { FS.mkdir('/temp/Saves'); } catch(e) {}
+		try { FS.mkdir('/temp/Replays'); } catch(e) {}
+	});
 
 	// Register resource manager paths
 	add_resmgr_paths(progDir / "data");

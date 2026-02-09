@@ -18,18 +18,7 @@
 #ifndef __EMSCRIPTEN__
 	#include <boost/lexical_cast.hpp>
 #else
-	// Compatibility wrapper for web builds
-	template<typename T, typename S>
-	T lexical_cast(const S& arg) {
-		if constexpr (std::is_same_v<T, std::string>) {
-			return std::to_string(arg);
-		} else if constexpr (std::is_integral_v<T>) {
-			if constexpr (std::is_same_v<S, std::string>) {
-				return static_cast<T>(std::stoi(arg));
-			}
-		}
-		throw std::runtime_error("Unsupported lexical_cast");
-	}
+	#include "compat/boost_compat.hpp"
 	#define BOOST_FALLTHROUGH [[fallthrough]]
 #endif
 

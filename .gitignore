@@ -103,3 +103,6 @@ rsrc/bases/**/editor.xml
 
 # Dependency-generated files
 deps/**/
+
+# Claude code
+.claude/

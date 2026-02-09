@@ -16,10 +16,10 @@
 	#include <boost/lexical_cast.hpp>
 	#include <boost/algorithm/string.hpp>
 #else
+	#include "compat/boost_compat.hpp"
 	#include <filesystem>
 	#include <algorithm>
 	#include <cctype>
-	#include <stdexcept>
 
 	#define BOOST_FALLTHROUGH [[fallthrough]]
 
@@ -30,55 +30,6 @@
 		static constexpr auto regular_file = file_type::regular;
 		static constexpr auto directory_file = file_type::directory;
 	}}
-
-	namespace boost {
-		class bad_lexical_cast : public std::runtime_error {
-		public:
-			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
-		};
-
-		template<typename T, typename S>
-		T lexical_cast(const S& arg) {
-			try {
-				if constexpr (std::is_same_v<T, std::string>) {
-					return std::to_string(arg);
-				} else if constexpr (std::is_integral_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				} else if constexpr (std::is_enum_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				}
-				throw bad_lexical_cast();
-			} catch (...) {
-				throw bad_lexical_cast();
-			}
-		}
-
-		namespace algorithm {
-			// Simple trim implementations
-			inline void trim(std::string& str) {
-				auto start = str.find_first_not_of(" \t\n\r");
-				auto end = str.find_last_not_of(" \t\n\r");
-				if (start == std::string::npos) {
-					str.clear();
-				} else {
-					str = str.substr(start, end - start + 1);
-				}
-			}
-
-			inline void trim_right(std::string& str) {
-				auto end = str.find_last_not_of(" \t\n\r");
-				if (end == std::string::npos) {
-					str.clear();
-				} else {
-					str = str.substr(0, end + 1);
-				}
-			}
-		}
-	}
 #endif
 
 #include "dialogxml/dialogs/strdlog.hpp"
@@ -230,6 +181,15 @@ bool load_scenario(fs::path file_to_load, cScenario& scenario, eLoadScenario loa
 	}
 	cur_scen_pushed_paths = false;
 	scenario = cScenario();
+	// Handle unpacked scenario directories (e.g., bundled scenarios in WASM build)
+	if(fs::is_directory(file_to_load)) {
+		if(load_scenario_v2(file_to_load, scenario, load_type)){
+			last_load_file = file_to_load.string();
+			return true;
+		}
+		return false;
+	}
+
 	std::string fname = file_to_load.filename().string();
 	std::transform(fname.begin(), fname.end(), fname.begin(), tolower);
 	size_t dot = fname.find_last_of('.');

@@ -98,17 +98,19 @@ void force_town_enter(short which_town,location where_start) {
 
 //short entry_dir; // if 9, go to forced
 void start_town_mode(short which_town, short entry_dir, bool debug_enter) {
+	std::cout << "start_town_mode: BEGIN (town=" << which_town << ")" << std::endl;
 	short town_number;
 	short former_town;
 	bool monsters_loaded = false,town_toast = false;
 	location loc;
 	bool play_town_sound = false;
-	
+
 	if(town_force < 200)
 		which_town = town_force;
 	else play_town_sound = true;
-	
+
 	former_town = town_number = which_town;
+	std::cout << "start_town_mode: town_number=" << town_number << std::endl;
 	
 	if(town_number < 0 || town_number >= univ.scenario.towns.size()) {
 		showError("The scenario tried to put you into a town that doesn't exist.",
@@ -139,7 +141,8 @@ void start_town_mode(short which_town, short entry_dir, bool debug_enter) {
 	}
 	
 	overall_mode = MODE_TOWN;
-	
+	std::cout << "start_town_mode: set mode to TOWN" << std::endl;
+
 	univ.party.town_num = town_number;
 	
 	if(play_town_sound) {
@@ -267,8 +270,10 @@ void start_town_mode(short which_town, short entry_dir, bool debug_enter) {
 			univ.town.update_fields(univ.party.setup[i]);
 		}
 	
+	std::cout << "start_town_mode: monsters_loaded=" << monsters_loaded << std::endl;
 	if(!monsters_loaded) {
 		univ.town.monst.clear();
+		std::cout << "start_town_mode: loading " << univ.town->creatures.size() << " creatures" << std::endl;
 		for(short i = 0; i < univ.town->creatures.size(); i++){
 			if(univ.town->creatures[i].number > 0) {
 				// First set up the values.
@@ -540,11 +545,14 @@ void start_town_mode(short which_town, short entry_dir, bool debug_enter) {
 	clear_map();
 	reset_item_max();
 	town_force = 200;
+	std::cout << "start_town_mode: about to call draw_terrain(1)..." << std::endl;
 	// TODO: One problem with this - it paints the terrain after the town entry dialog is dismissed
 	// ... except it actually doesn't, because the town enter special is only queued, not run immediately.
 	draw_terrain(1);
+	std::cout << "start_town_mode: draw_terrain(1) done" << std::endl;
 
 	try_auto_save("EnterTown");
+	std::cout << "start_town_mode: END" << std::endl;
 }
 
 

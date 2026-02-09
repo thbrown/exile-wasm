@@ -236,6 +236,7 @@
 			}
 
 			const std::string& getFilename() const { return filename_; }
+			void setFilename(const std::string& name) { filename_ = name; }
 
 			bool loadFromStream(InputStream& stream) {
 				return create(1, 1);
@@ -257,6 +258,10 @@
 					if (Module.textureDimensions && Module.textureDimensions[filename]) {
 						return Module.textureDimensions[filename].width;
 					}
+					// Only log for actual image files (not empty or rt_ textures)
+					if (filename && !filename.startsWith('rt_')) {
+						console.log('getSize: dimensions not available for "' + filename + '", using stub: ' + $1);
+					}
 					return $1;
 				}, filename_.c_str(), width_);
 
@@ -273,8 +278,22 @@
 				return ImageSize{width_, height_};
 				#endif
 			}
-			unsigned int getWidth() const { return width_; }
-			unsigned int getHeight() const { return height_; }
+			unsigned int getWidth() const {
+				#ifdef __EMSCRIPTEN__
+				auto sz = getSize();
+				return sz.x;
+				#else
+				return width_;
+				#endif
+			}
+			unsigned int getHeight() const {
+				#ifdef __EMSCRIPTEN__
+				auto sz = getSize();
+				return sz.y;
+				#else
+				return height_;
+				#endif
+			}
 
 			Image copyToImage() const {
 				Image img;

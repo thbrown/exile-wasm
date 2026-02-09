@@ -38,40 +38,10 @@
 	#include <boost/lexical_cast.hpp>
 	#include <fmt/format.h>
 #else
-	#include <string>
+	#include "compat/boost_compat.hpp"
 	#include <optional>
 	#define BOOST_FALLTHROUGH [[fallthrough]]
 	#define BOOST_UNREACHABLE_RETURN(val) return val
-	namespace boost {
-		using std::optional;
-		using std::nullopt;
-		using std::nullopt_t;
-
-		class bad_lexical_cast : public std::runtime_error {
-		public:
-			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
-		};
-
-		template<typename T, typename S>
-		T lexical_cast(const S& arg) {
-			try {
-				if constexpr (std::is_same_v<T, std::string>) {
-					return std::to_string(arg);
-				} else if constexpr (std::is_integral_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				} else if constexpr (std::is_enum_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				}
-				throw bad_lexical_cast();
-			} catch (...) {
-				throw bad_lexical_cast();
-			}
-		}
-	}
 	namespace fmt {
 		inline std::string to_str(const std::string& s) { return s; }
 		inline std::string to_str(const char* s) { return std::string(s); }

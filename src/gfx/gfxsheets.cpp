@@ -16,7 +16,7 @@ bool use_win_graphics = false;
 
 rectangle calc_rect(short i, short j){
 	rectangle base_rect = {0,0,36,28};
-	
+
 	base_rect.offset(i * 28, j * 36);
 	return base_rect;
 }

@@ -66,33 +66,7 @@
 #ifndef __EMSCRIPTEN__
 	#include <boost/lexical_cast.hpp>
 #else
-	// boost::lexical_cast compatibility
-	namespace boost {
-		class bad_lexical_cast : public std::runtime_error {
-		public:
-			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
-		};
-
-		template<typename T, typename S>
-		T lexical_cast(const S& arg) {
-			try {
-				if constexpr (std::is_same_v<T, std::string>) {
-					return std::to_string(arg);
-				} else if constexpr (std::is_integral_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				} else if constexpr (std::is_enum_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				}
-				throw bad_lexical_cast();
-			} catch (...) {
-				throw bad_lexical_cast();
-			}
-		}
-	}
+	#include "compat/boost_compat.hpp"
 #endif
 #include "dialogxml/widgets/button.hpp"
 #include "spell.hpp"
@@ -243,21 +217,30 @@ void put_party_in_scen(std::string scen_name, bool force, bool allow_unpacked) {
 	
 	// if at this point, startup must be over, so make this call to make sure we're ready,
 	// graphics wise
+	std::cout << "put_party_in_scen: calling end_startup()..." << std::endl;
 	end_startup();
-	
+	std::cout << "put_party_in_scen: end_startup() done" << std::endl;
+
 	stat_screen_mode = MODE_INVEN;
+	std::cout << "put_party_in_scen: calling build_outdoors()..." << std::endl;
 	build_outdoors();
+	std::cout << "put_party_in_scen: build_outdoors() done" << std::endl;
 	erase_out_specials();
-	
+
 	univ.cur_pc = first_active_pc();
+	std::cout << "put_party_in_scen: calling force_town_enter()..." << std::endl;
 	force_town_enter(univ.scenario.which_town_start,univ.scenario.where_start);
+	std::cout << "put_party_in_scen: calling start_town_mode()..." << std::endl;
 	start_town_mode(univ.scenario.which_town_start,9);
+	std::cout << "put_party_in_scen: start_town_mode() done" << std::endl;
 	while(!special_queue.empty())
 		special_queue.pop(); // Preserve legacy behaviour of not calling the "enter town" node at scenario start
 	center = univ.scenario.where_start;
 	update_explored(univ.scenario.where_start);
 	overall_mode = MODE_TOWN;
+	std::cout << "put_party_in_scen: calling redraw_screen()..." << std::endl;
 	redraw_screen(REFRESH_ALL);
+	std::cout << "put_party_in_scen: redraw_screen() done" << std::endl;
 	set_stat_window(ITEM_WIN_PC1);
 	adjust_spell_menus();
 	adjust_monst_menu();

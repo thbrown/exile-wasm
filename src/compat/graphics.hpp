@@ -478,26 +478,127 @@
 			Vector2i mapCoordsToPixel(const ::location& point, const View& view) const;
 		};
 
-		// RenderTexture (stub) - off-screen rendering target
+		// RenderTexture - off-screen rendering target using Canvas elements
 		class RenderTexture : public RenderTarget {
 		private:
 			unsigned int width_ = 0;
 			unsigned int height_ = 0;
 			Texture texture_;
+			std::string contextId_;
 		public:
 			RenderTexture() {}
 
 			bool create(unsigned int width, unsigned int height) {
 				width_ = width;
 				height_ = height;
-				texture_.create(width, height);
+
+				// Generate unique context ID
+				int id = EM_ASM_INT({ return Module._rtCounter++; });
+				contextId_ = "rt_" + std::to_string(id);
+
+				// Create off-screen canvas in JS
+				EM_ASM_({
+					var id = UTF8ToString($0);
+					Module.createOffscreenCtx(id, $1, $2);
+				}, contextId_.c_str(), width, height);
+
+				// Set texture filename to context ID so drawImage can find it
+				texture_.setFilename(contextId_);
+
+				// Store dimensions in JS texture cache for proper size queries
+				EM_ASM_({
+					var id = UTF8ToString($0);
+					if (!Module.textureDimensions) Module.textureDimensions = {};
+					var dims = {};
+					dims.width = $1;
+					dims.height = $2;
+					Module.textureDimensions[id] = dims;
+				}, contextId_.c_str(), width, height);
+
 				return true;
 			}
 
-			void clear(const Color& color = Color(0, 0, 0)) override {}
+			void clear(const Color& color = Color(0, 0, 0)) override {
+				if(contextId_.empty()) return;
+				EM_ASM_({
+					var id = UTF8ToString($0);
+					Module.clearCtx(id, $1, $2, $3);
+				}, contextId_.c_str(), (int)color.r, (int)color.g, (int)color.b);
+			}
+
 			void display() {}
 
-			void draw(const Drawable& drawable, const RenderStates& states = RenderStates()) override {}
+			void draw(const Drawable& drawable, const RenderStates& states = RenderStates()) override {
+				if(contextId_.empty()) return;
+
+				const Sprite* sprite = dynamic_cast<const Sprite*>(&drawable);
+				if(sprite) {
+					auto pos = sprite->getPosition();
+					auto texRect = sprite->getTextureRect();
+					auto scale = sprite->getScale();
+					const Texture* tex = sprite->getTexture();
+
+					float w = texRect.width * scale.x;
+					float h = texRect.height * scale.y;
+
+					static int rt_log_count = 0;
+					if(rt_log_count < 3 && tex && tex->getFilename().find("ter") != std::string::npos) {
+						std::cout << "RenderTexture::draw to " << contextId_ << ": tex=" << tex->getFilename()
+						          << " pos=(" << pos.x << "," << pos.y << ")"
+						          << " texRect=(" << texRect.left << "," << texRect.top << "," << texRect.width << "," << texRect.height << ")"
+						          << " scale=(" << scale.x << "," << scale.y << ")"
+						          << " final size=(" << w << "," << h << ")" << std::endl;
+						rt_log_count++;
+					}
+
+					if(tex && !tex->getFilename().empty()) {
+						EM_ASM_({
+							var ctxId = UTF8ToString($0);
+							var filename = UTF8ToString($1);
+							Module.drawSpriteToCtx(ctxId, filename, $2, $3, $4, $5, $6, $7, $8, $9);
+						}, contextId_.c_str(), tex->getFilename().c_str(),
+						   texRect.left, texRect.top, texRect.width, texRect.height,
+						   pos.x, pos.y, w, h);
+					} else {
+						EM_ASM_({
+							var ctxId = UTF8ToString($0);
+							Module.drawRectToCtx(ctxId, $1, $2, $3, $4, 255, 0, 255, 255);
+						}, contextId_.c_str(), pos.x, pos.y, w, h);
+					}
+					return;
+				}
+
+				const Text* text = dynamic_cast<const Text*>(&drawable);
+				if(text) {
+					auto pos = text->getPosition();
+					auto str = text->getString();
+					auto size = text->getCharacterSize();
+					auto color = text->getFillColor();
+					if(str.empty()) return;
+
+					EM_ASM_({
+						var ctxId = UTF8ToString($0);
+						var txt = UTF8ToString($1);
+						Module.drawTextToCtx(ctxId, txt, $2, $3, $4, $5, $6, $7, $8);
+					}, contextId_.c_str(), str.c_str(),
+					   pos.x, pos.y, size, color.r, color.g, color.b, color.a);
+					return;
+				}
+
+				const RectangleShape* rectShape = dynamic_cast<const RectangleShape*>(&drawable);
+				if(rectShape) {
+					auto pos = rectShape->getPosition();
+					auto sz = rectShape->getSize();
+					auto fillClr = rectShape->getFillColor();
+
+					EM_ASM_({
+						var ctxId = UTF8ToString($0);
+						Module.drawRectToCtx(ctxId, $1, $2, $3, $4, $5, $6, $7, $8);
+					}, contextId_.c_str(), pos.x, pos.y, sz.x, sz.y,
+					   fillClr.r, fillClr.g, fillClr.b, fillClr.a);
+					return;
+				}
+			}
 
 			Vector2u getSize() const override { return Vector2u(width_, height_); }
 			void setView(const View& view) override {}
@@ -529,38 +630,24 @@
 			void clear(const Color& color = Color(0, 0, 0)) override {
 				clearColor_ = color;
 				#ifdef __EMSCRIPTEN__
-				static int clear_count = 0;
-				static int last_log = 0;
-				static bool size_set = false;
-				clear_count++;
+				static bool canvas_registered = false;
 
-				// Set canvas size once to ensure all sprites are visible
-				if(!size_set) {
+				// Register main canvas on first call and set size
+				if(!canvas_registered) {
 					EM_ASM({
 						var canvas = Module.canvas;
-						var oldW = canvas.width;
-						var oldH = canvas.height;
 						canvas.width = 800;
 						canvas.height = 600;
-						console.log('Canvas resized from ' + oldW + 'x' + oldH + ' to 800x600');
+						Module.registerMainCanvas();
+						console.log('Main canvas registered: 800x600');
 					});
-					size_set = true;
+					canvas_registered = true;
 				}
 
-				if(clear_count - last_log >= 60) { // Log once per second
-					std::cout << "clear() called " << clear_count << " times, color=("
-					          << (int)color.r << "," << (int)color.g << "," << (int)color.b << ")" << std::endl;
-					last_log = clear_count;
-				}
-				draw_dedup::newFrame(); // Reset draw tracking for new frame
-				EM_ASM({
-					var canvas = Module.canvas;
-					if(canvas && canvas.getContext) {
-						var ctx = canvas.getContext('2d');
-						ctx.fillStyle = 'rgb(' + $0 + ',' + $1 + ',' + $2 + ')';
-						ctx.fillRect(0, 0, canvas.width, canvas.height);
-					}
-				}, color.r, color.g, color.b);
+				draw_dedup::newFrame();
+				EM_ASM_({
+					Module.clearCtx('main', $0, $1, $2);
+				}, (int)color.r, (int)color.g, (int)color.b);
 				#endif
 			}
 
@@ -578,67 +665,39 @@
 					auto pos = sprite->getPosition();
 					auto texRect = sprite->getTextureRect();
 					auto scale = sprite->getScale();
-					auto color = sprite->getColor();
 					const Texture* tex = sprite->getTexture();
 
 					// Apply draw offset for dialog overlay rendering
 					float drawX = pos.x + drawOffsetX_;
 					float drawY = pos.y + drawOffsetY_;
 
+					static int log_count = 0;
+					if(log_count < 3) {
+						std::cout << "RenderWindow::draw sprite: pos=(" << pos.x << "," << pos.y << ")"
+						          << " offset=(" << drawOffsetX_ << "," << drawOffsetY_ << ")"
+						          << " final=(" << drawX << "," << drawY << ")" << std::endl;
+						log_count++;
+					}
+
 					float w = texRect.width * scale.x;
 					float h = texRect.height * scale.y;
 
-					// Draw using texture if available, otherwise colored rect
 					if(tex && !tex->getFilename().empty()) {
 						EM_ASM_({
-							var ctx = Module.canvas.getContext('2d');
 							var filename = UTF8ToString($0);
-
-							if (!Module.textureCache) {
-								Module.textureCache = {};
-							}
-
-							if (!Module.textureCache[filename]) {
-								try {
-									var data = FS.readFile(filename);
-									var blob = new Blob([data]);
-									var url = URL.createObjectURL(blob);
-									var img = new Image();
-									img.src = url;
-									Module.textureCache[filename] = img;
-								} catch(e) {
-									ctx.fillStyle = 'red';
-									ctx.fillRect($1, $2, $7, $8);
-									return;
-								}
-							}
-
-							var img = Module.textureCache[filename];
-							if (img.complete && img.naturalWidth > 0) {
-								ctx.drawImage(img, $3, $4, $5, $6, $1, $2, $7, $8);
-							} else {
-								ctx.fillStyle = 'yellow';
-								ctx.fillRect($1, $2, $7, $8);
-								ctx.strokeStyle = 'black';
-								ctx.strokeRect($1, $2, $7, $8);
-							}
-						}, tex->getFilename().c_str(), drawX, drawY,
+							Module.drawSpriteToCtx('main', filename, $1, $2, $3, $4, $5, $6, $7, $8);
+						}, tex->getFilename().c_str(),
 						   texRect.left, texRect.top, texRect.width, texRect.height,
-						   w, h);
+						   drawX, drawY, w, h);
 					} else {
 						EM_ASM_({
-							var ctx = Module.canvas.getContext('2d');
-							ctx.fillStyle = 'magenta';
-							ctx.fillRect($0, $1, $2, $3);
-							ctx.strokeStyle = 'white';
-							ctx.lineWidth = 1;
-							ctx.strokeRect($0, $1, $2, $3);
+							Module.drawRectToCtx('main', $0, $1, $2, $3, 255, 0, 255, 255);
+							Module.drawFrameRectToCtx('main', $0, $1, $2, $3, 255, 255, 255, 255, 1);
 						}, drawX, drawY, w, h);
 					}
 					return;
 				}
 
-				// Handle Text rendering
 				const Text* text = dynamic_cast<const Text*>(&drawable);
 				if(text) {
 					auto pos = text->getPosition();
@@ -648,30 +707,16 @@
 
 					if(str.empty()) return;
 
-					// Apply draw offset for dialog overlay rendering
 					float drawX = pos.x + drawOffsetX_;
 					float drawY = pos.y + drawOffsetY_;
 
 					EM_ASM_({
-						var ctx = Module.canvas.getContext('2d');
-						var text = UTF8ToString($0);
-						var x = $1;
-						var y = $2;
-						var size = $3;
-						var r = $4;
-						var g = $5;
-						var b = $6;
-						var a = $7;
-
-						ctx.font = size + 'px sans-serif';
-						ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (a/255) + ')';
-						ctx.textBaseline = 'top';
-						ctx.fillText(text, x, y);
+						var txt = UTF8ToString($0);
+						Module.drawTextToCtx('main', txt, $1, $2, $3, $4, $5, $6, $7);
 					}, str.c_str(), drawX, drawY, size, color.r, color.g, color.b, color.a);
 					return;
 				}
 
-				// Handle RectangleShape rendering (used for dialog overlays)
 				const RectangleShape* rectShape = dynamic_cast<const RectangleShape*>(&drawable);
 				if(rectShape) {
 					auto pos = rectShape->getPosition();
@@ -681,10 +726,8 @@
 					float drawY = pos.y + drawOffsetY_;
 
 					EM_ASM_({
-						var ctx = Module.canvas.getContext('2d');
-						ctx.fillStyle = 'rgba(' + $2 + ',' + $3 + ',' + $4 + ',' + ($5/255) + ')';
-						ctx.fillRect($0, $1, $6, $7);
-					}, drawX, drawY, fillClr.r, fillClr.g, fillClr.b, fillClr.a, sz.x, sz.y);
+						Module.drawRectToCtx('main', $0, $1, $2, $3, $4, $5, $6, $7);
+					}, drawX, drawY, sz.x, sz.y, fillClr.r, fillClr.g, fillClr.b, fillClr.a);
 					return;
 				}
 				#endif

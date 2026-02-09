@@ -18,6 +18,7 @@
 	#include <filesystem>
 	#include <optional>
 	#include <string>
+	#include <sstream>
 	namespace fs = std::filesystem;
 	namespace boost {
 		using std::optional;
@@ -29,7 +30,11 @@
 		T lexical_cast(const S& arg) {
 			try {
 				if constexpr (std::is_same_v<T, std::string>) {
-					if constexpr (std::is_enum_v<S>) {
+					if constexpr (std::is_same_v<S, std::string>) {
+						return arg; // string → string (identity)
+					} else if constexpr (std::is_same_v<S, const char*> || std::is_same_v<S, char*>) {
+						return std::string(arg); // C string → string
+					} else if constexpr (std::is_enum_v<S>) {
 						return std::to_string(static_cast<int>(arg));
 					} else if constexpr (std::is_integral_v<S> || std::is_floating_point_v<S>) {
 						return std::to_string(arg);
@@ -40,11 +45,27 @@
 					}
 				} else if constexpr (std::is_enum_v<T>) {
 					if constexpr (std::is_same_v<S, std::string>) {
+						// Try using operator>> if available (for named enums)
+						std::istringstream iss(arg);
+						T result;
+						iss >> result;
+						if(!iss.fail()) {
+							return result;
+						}
+						// Fallback to numeric conversion
 						return static_cast<T>(std::stoi(arg));
 					}
 				}
+				std::cerr << "lexical_cast UNSUPPORTED type conversion, typeid T=" << typeid(T).name() << " S=" << typeid(S).name() << std::endl;
 				throw bad_lexical_cast();
-			} catch (...) {
+			} catch (const bad_lexical_cast&) {
+				throw;
+			} catch (const std::exception& e) {
+				if constexpr (std::is_same_v<S, std::string>) {
+					std::cerr << "lexical_cast FAILED converting string '" << arg << "' to " << typeid(T).name() << ": " << e.what() << std::endl;
+				} else {
+					std::cerr << "lexical_cast FAILED: " << e.what() << " target=" << typeid(T).name() << std::endl;
+				}
 				throw bad_lexical_cast();
 			}
 		}
@@ -381,6 +402,22 @@ int main(int argc, char* argv[]) {
 
 #ifndef __EMSCRIPTEN__
 		handle_scenario_args();
+#else
+		// WASM quick-start: bypass party creation and scenario selection
+		// Jump straight into Valley of Dying Things with a default party
+		try {
+			std::cout << "WASM quick-start: creating default party..." << std::endl;
+			start_new_game(true);
+			std::cout << "WASM quick-start: party created, loading valleydy..." << std::endl;
+			put_party_in_scen("valleydy", true);
+			std::cout << "WASM quick-start: scenario loaded, mode=" << (int)overall_mode << std::endl;
+		} catch(std::exception& e) {
+			std::cerr << "WASM quick-start EXCEPTION: " << e.what() << std::endl;
+		} catch(std::string& s) {
+			std::cerr << "WASM quick-start STRING EXCEPTION: " << s << std::endl;
+		} catch(...) {
+			std::cerr << "WASM quick-start UNKNOWN EXCEPTION" << std::endl;
+		}
 #endif
 
 #ifdef __EMSCRIPTEN__
