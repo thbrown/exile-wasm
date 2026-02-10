@@ -94,6 +94,12 @@ void push_mouse_event(int type, int x, int y, int button) {
 
 EMSCRIPTEN_KEEPALIVE
 void push_key_event(int type, int keyCode, int shift, int ctrl, int alt) {
+	static int key_log_count = 0;
+	if(key_log_count < 10 && type == KEY_PRESSED_WEB) {
+		std::cout << "push_key_event: KEY_PRESSED keyCode=" << keyCode << " shift=" << shift << " ctrl=" << ctrl << " alt=" << alt << std::endl;
+		key_log_count++;
+	}
+
 	sf::Event evt;
 	switch(type) {
 		case KEY_PRESSED_WEB:
@@ -642,7 +648,65 @@ bool keymods_t::handleModifier(const sf::Event& evt) {
 
 keymods_t kb;
 
-char keyToChar(sf::Keyboard::Key key, bool shift) { return '\0'; }
+char keyToChar(sf::Keyboard::Key key, bool shift) {
+	using kb = sf::Keyboard;
+	switch(key) {
+		case kb::A: return shift ? 'A' : 'a';
+		case kb::B: return shift ? 'B' : 'b';
+		case kb::C: return shift ? 'C' : 'c';
+		case kb::D: return shift ? 'D' : 'd';
+		case kb::E: return shift ? 'E' : 'e';
+		case kb::F: return shift ? 'F' : 'f';
+		case kb::G: return shift ? 'G' : 'g';
+		case kb::H: return shift ? 'H' : 'h';
+		case kb::I: return shift ? 'I' : 'i';
+		case kb::J: return shift ? 'J' : 'j';
+		case kb::K: return shift ? 'K' : 'k';
+		case kb::L: return shift ? 'L' : 'l';
+		case kb::M: return shift ? 'M' : 'm';
+		case kb::N: return shift ? 'N' : 'n';
+		case kb::O: return shift ? 'O' : 'o';
+		case kb::P: return shift ? 'P' : 'p';
+		case kb::Q: return shift ? 'Q' : 'q';
+		case kb::R: return shift ? 'R' : 'r';
+		case kb::S: return shift ? 'S' : 's';
+		case kb::T: return shift ? 'T' : 't';
+		case kb::U: return shift ? 'U' : 'u';
+		case kb::V: return shift ? 'V' : 'v';
+		case kb::W: return shift ? 'W' : 'w';
+		case kb::X: return shift ? 'X' : 'x';
+		case kb::Y: return shift ? 'Y' : 'y';
+		case kb::Z: return shift ? 'Z' : 'z';
+		case kb::Num1: return shift ? '!' : '1';
+		case kb::Num2: return shift ? '@' : '2';
+		case kb::Num3: return shift ? '#' : '3';
+		case kb::Num4: return shift ? '$' : '4';
+		case kb::Num5: return shift ? '%' : '5';
+		case kb::Num6: return shift ? '^' : '6';
+		case kb::Num7: return shift ? '&' : '7';
+		case kb::Num8: return shift ? '*' : '8';
+		case kb::Num9: return shift ? '(' : '9';
+		case kb::Num0: return shift ? ')' : '0';
+		case kb::Tilde: return shift ? '~' : '`';
+		case kb::Hyphen: return shift ? '_' : '-';
+		case kb::Equal: return shift ? '+' : '=';
+		case kb::LBracket: return shift ? '{' : '[';
+		case kb::RBracket: return shift ? '}' : ']';
+		case kb::Semicolon: return shift ? ':' : ';';
+		case kb::Quote: return shift ? '"' : '\'';
+		case kb::Comma: return shift ? '<' : ',';
+		case kb::Period: return shift ? '>' : '.';
+		case kb::Slash: return shift ? '?' : '/';
+		case kb::Backslash: return shift ? '|' : '\\';
+		case kb::Tab: return '\t';
+		case kb::Space: return ' ';
+		case kb::Enter: return '\n';
+		case kb::Backspace: return '\b';
+		case kb::Delete: return '\x7f';
+		default: break;
+	}
+	return '\0';
+}
 
 // String choice dialog
 struct cStringChoice {
