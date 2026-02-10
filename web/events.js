@@ -168,12 +168,19 @@
       canvas.focus();
       var coords = getCanvasCoords(event);
       var button = mapMouseButton(event.button);
-      Module.ccall(
-        "push_mouse_event",
-        null,
-        ["number", "number", "number", "number"],
-        [MOUSE_PRESSED, coords.x, coords.y, button],
-      );
+      console.log('Mouse down at canvas coords:', coords.x, coords.y, 'button:', button);
+      console.log('About to call push_mouse_event, Module.ccall exists:', typeof Module.ccall);
+      try {
+        Module.ccall(
+          "push_mouse_event",
+          null,
+          ["number", "number", "number", "number"],
+          [MOUSE_PRESSED, coords.x, coords.y, button],
+        );
+        console.log('push_mouse_event ccall succeeded');
+      } catch(e) {
+        console.error('push_mouse_event ccall failed:', e);
+      }
     });
 
     canvas.addEventListener("mouseup", function (event) {

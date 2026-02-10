@@ -258,10 +258,6 @@
 					if (Module.textureDimensions && Module.textureDimensions[filename]) {
 						return Module.textureDimensions[filename].width;
 					}
-					// Only log for actual image files (not empty or rt_ textures)
-					if (filename && !filename.startsWith('rt_')) {
-						console.log('getSize: dimensions not available for "' + filename + '", using stub: ' + $1);
-					}
 					return $1;
 				}, filename_.c_str(), width_);
 

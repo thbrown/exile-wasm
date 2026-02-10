@@ -595,12 +595,12 @@ static void loadImageToRenderTexture(sf::RenderTexture& tex, std::string imgName
 	int h = (it != sizes.end()) ? it->second.second : 300;
 	tex.create(w, h);
 	rectangle texrect(0, 0, h, w);  // {top, left, bottom, right}
+	rect_draw_some_item(temp_gworld, texrect, tex, texrect, sf::BlendNone);
 	#else
 	rectangle texrect(temp_gworld);
 	tex.create(texrect.width(), texrect.height());
-	#endif
-
 	rect_draw_some_item(temp_gworld, texrect, tex, texrect, sf::BlendNone);
+	#endif
 }
 
 void load_main_screen() {

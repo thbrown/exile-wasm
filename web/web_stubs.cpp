@@ -33,6 +33,11 @@
 // ============================================================
 static std::queue<sf::Event> g_web_event_queue;
 
+// Current mouse position (for sf::Mouse::getPosition) - in sf namespace
+namespace sf {
+	Vector2i g_current_mouse_pos(0, 0);
+}
+
 // Flag to request redraw when textures finish loading
 static bool g_needs_redraw = false;
 
@@ -52,6 +57,16 @@ extern "C" {
 
 EMSCRIPTEN_KEEPALIVE
 void push_mouse_event(int type, int x, int y, int button) {
+	static int push_log_count = 0;
+	if(push_log_count < 5 && type == MOUSE_PRESSED) {
+		std::cout << "push_mouse_event: PRESSED at (" << x << "," << y << ") button=" << button << std::endl;
+		push_log_count++;
+	}
+
+	// Update current mouse position
+	sf::g_current_mouse_pos.x = x;
+	sf::g_current_mouse_pos.y = y;
+
 	sf::Event evt;
 	switch(type) {
 		case MOUSE_PRESSED:
@@ -343,6 +358,16 @@ bool has_next_action(std::string expected_type) {
 
 // Event polling function - dequeues from the web event queue
 bool pollEvent(sf::Window& window, sf::Event& event) {
+	static int poll_log_count = 0;
+	static int last_queue_size = -1;
+	int queue_size = g_web_event_queue.size();
+
+	if(poll_log_count < 5 || (queue_size > 0 && queue_size != last_queue_size)) {
+		std::cout << "pollEvent called, queue size: " << queue_size << std::endl;
+		poll_log_count++;
+		last_queue_size = queue_size;
+	}
+
 	if(g_web_event_queue.empty()) return false;
 	event = g_web_event_queue.front();
 	g_web_event_queue.pop();
@@ -354,6 +379,12 @@ bool pollEvent(sf::Window& window, sf::Event& event) {
 
 	// Adjust mouse coordinates when a dialog is active (subtract draw offset)
 	if(event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::MouseButtonReleased) {
+		static int mouse_log_count = 0;
+		if(mouse_log_count < 3) {
+			std::cout << "pollEvent: Mouse " << (event.type == sf::Event::MouseButtonPressed ? "pressed" : "released")
+			          << " at (" << event.mouseButton.x << "," << event.mouseButton.y << ")" << std::endl;
+			mouse_log_count++;
+		}
 		auto& win = dynamic_cast<sf::RenderWindow&>(window);
 		int offX = win.getDrawOffsetX();
 		int offY = win.getDrawOffsetY();

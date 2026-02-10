@@ -1595,10 +1595,18 @@ bool handle_action(const sf::Event& event, cFramerateLimiter& fps_limiter) {
 	rectangle world_screen = win_to_rects[WINRECT_TERVIEW];
 	rectangle terrain_viewport = world_screen;
 	world_screen.inset(13, 13);
-	
+
 	location point_in_area;
-	
+
 	location the_point = mouse_window_coords();
+
+	#ifdef __EMSCRIPTEN__
+	static int handle_action_log_count = 0;
+	if(handle_action_log_count < 5) {
+		std::cout << "handle_action: the_point=(" << the_point.x << "," << the_point.y << ") overall_mode=" << static_cast<int>(overall_mode) << std::endl;
+		handle_action_log_count++;
+	}
+	#endif
 
 	end_scenario = false;
 	
@@ -1716,9 +1724,17 @@ bool handle_action(const sf::Event& event, cFramerateLimiter& fps_limiter) {
 		int i = tile.x;
 		int j = tile.y;
 
+		#ifdef __EMSCRIPTEN__
+		static int terrain_click_log_count = 0;
+		if(terrain_click_log_count < 5) {
+			std::cout << "handle_action: terrain click at tile (" << i << "," << j << ")" << std::endl;
+			terrain_click_log_count++;
+		}
+		#endif
+
 		location offset = {i - 4, j - 4};
 		handle_terrain_screen_actions(offset, true, right_button, did_something, need_redraw, need_reprint);
-		
+
 	}
 	// MARK: End: click in terrain
 	

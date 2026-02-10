@@ -69,10 +69,17 @@
 			return Vector2<T>(left.x * scalar, left.y * scalar);
 		}
 
+		// Global variable to track current mouse position
+		extern Vector2i g_current_mouse_pos;
+
 		// Implement Mouse::getPosition() now that Vector2 is defined
 		inline Vector2i Mouse::getPosition(const Window& relativeTo) {
-			// Stub - in real web implementation would get from browser
+			#ifdef __EMSCRIPTEN__
+			return g_current_mouse_pos;
+			#else
+			// Stub for non-WASM builds
 			return Vector2i(0, 0);
+			#endif
 		}
 
 		// Rect type
@@ -541,16 +548,6 @@
 					float w = texRect.width * scale.x;
 					float h = texRect.height * scale.y;
 
-					static int rt_log_count = 0;
-					if(rt_log_count < 3 && tex && tex->getFilename().find("ter") != std::string::npos) {
-						std::cout << "RenderTexture::draw to " << contextId_ << ": tex=" << tex->getFilename()
-						          << " pos=(" << pos.x << "," << pos.y << ")"
-						          << " texRect=(" << texRect.left << "," << texRect.top << "," << texRect.width << "," << texRect.height << ")"
-						          << " scale=(" << scale.x << "," << scale.y << ")"
-						          << " final size=(" << w << "," << h << ")" << std::endl;
-						rt_log_count++;
-					}
-
 					if(tex && !tex->getFilename().empty()) {
 						EM_ASM_({
 							var ctxId = UTF8ToString($0);
@@ -670,14 +667,6 @@
 					// Apply draw offset for dialog overlay rendering
 					float drawX = pos.x + drawOffsetX_;
 					float drawY = pos.y + drawOffsetY_;
-
-					static int log_count = 0;
-					if(log_count < 3) {
-						std::cout << "RenderWindow::draw sprite: pos=(" << pos.x << "," << pos.y << ")"
-						          << " offset=(" << drawOffsetX_ << "," << drawOffsetY_ << ")"
-						          << " final=(" << drawX << "," << drawY << ")" << std::endl;
-						log_count++;
-					}
 
 					float w = texRect.width * scale.x;
 					float h = texRect.height * scale.y;
