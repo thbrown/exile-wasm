@@ -278,8 +278,13 @@ void iLiving::spell_note(eSpellNote which_mess) const {
 #ifndef __EMSCRIPTEN__
 		print_result(fmt::format(msg, get_name()));
 #else
-		// Web: Simple message (TODO: implement proper formatting)
-		print_result(std::string(msg) + " " + get_name());
+		// Web: Replace {} with creature name
+		std::string formatted_msg = msg;
+		size_t pos = formatted_msg.find("{}");
+		if(pos != std::string::npos) {
+			formatted_msg.replace(pos, 2, get_name());
+		}
+		print_result(formatted_msg);
 #endif
 	}
 }

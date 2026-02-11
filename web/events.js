@@ -339,13 +339,58 @@
     // Start preloading images
     Module.preloadImages();
 
+    // Load fonts from Emscripten filesystem
+    Module.loadFonts = function() {
+      var fonts = {
+        'BoE-Plain': '/data/fonts/plain.ttf',
+        'BoE-Bold': '/data/fonts/bold.ttf',
+        'BoE-Dungeon': '/data/fonts/dungeon.ttf',
+        'BoE-Maidenword': '/data/fonts/maidenword.ttf'
+      };
+
+      Object.keys(fonts).forEach(function(fontName) {
+        try {
+          var fontPath = fonts[fontName];
+          var fontData = FS.readFile(fontPath);
+          var blob = new Blob([fontData], { type: 'font/truetype' });
+          var url = URL.createObjectURL(blob);
+
+          // Create @font-face style
+          var style = document.createElement('style');
+          style.textContent = '@font-face { font-family: "' + fontName + '"; src: url(' + url + '); }';
+          document.head.appendChild(style);
+
+          console.log('Loaded font: ' + fontName);
+        } catch(e) {
+          console.error('Failed to load font ' + fontName + ':', e);
+        }
+      });
+    };
+
+    // Load fonts when filesystem is ready
+    Module.loadFonts();
+
+    // Font name mapping (eFont enum to CSS font name)
+    Module.fontMap = {
+      0: 'BoE-Plain',      // FONT_PLAIN
+      1: 'BoE-Bold',       // FONT_BOLD
+      2: 'BoE-Dungeon',    // FONT_DUNGEON
+      3: 'BoE-Maidenword'  // FONT_MAIDWORD
+    };
+
     // Register the main canvas context
     Module.registerMainCanvas = function () {
       if (Module.drawContexts["main"]) return;
       var canvas = Module.canvas;
       if (canvas && canvas.getContext) {
-        Module.drawContexts["main"] = canvas.getContext("2d");
-        console.log("Drawing module: main canvas registered");
+        var ctx = canvas.getContext("2d");
+        // Disable image smoothing for pixel-perfect rendering
+        ctx.imageSmoothingEnabled = false;
+        ctx.mozImageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+        Module.drawContexts["main"] = ctx;
+        console.log("Drawing module: main canvas registered (smoothing disabled)");
       }
     };
 
@@ -354,7 +399,13 @@
       var offCanvas = document.createElement("canvas");
       offCanvas.width = w;
       offCanvas.height = h;
-      Module.drawContexts[id] = offCanvas.getContext("2d");
+      var ctx = offCanvas.getContext("2d");
+      // Disable image smoothing for pixel-perfect rendering
+      ctx.imageSmoothingEnabled = false;
+      ctx.mozImageSmoothingEnabled = false;
+      ctx.webkitImageSmoothingEnabled = false;
+      ctx.msImageSmoothingEnabled = false;
+      Module.drawContexts[id] = ctx;
       // Store the canvas element itself so it can be used as a drawImage source
       Module.textureCache[id] = offCanvas;
       console.log(
@@ -444,10 +495,13 @@
     };
 
     // Draw text to a context
-    Module.drawTextToCtx = function (ctxId, text, x, y, size, r, g, b, a) {
+    Module.drawTextToCtx = function (ctxId, text, x, y, size, r, g, b, a, fontId) {
       var ctx = Module.drawContexts[ctxId];
       if (!ctx) return;
-      ctx.font = size + "px sans-serif";
+
+      // Get font family from font map (defaults to BoE-Plain if not specified)
+      var fontFamily = Module.fontMap[fontId] || 'BoE-Plain';
+      ctx.font = size + "px " + fontFamily;
       ctx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";
       ctx.textBaseline = "top";
       ctx.fillText(text, x, y);

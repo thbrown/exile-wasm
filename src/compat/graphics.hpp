@@ -163,8 +163,17 @@
 
 		// Font class (stub)
 		class Font {
+		private:
+			int fontId_ = 0;  // 0=plain, 1=bold, 2=dungeon, 3=maidenword
 		public:
-			bool loadFromFile(const std::string& filename) { return true; }
+			bool loadFromFile(const std::string& filename) {
+				// Parse font name from filename to determine font ID
+				if(filename.find("bold") != std::string::npos) fontId_ = 1;
+				else if(filename.find("dungeon") != std::string::npos) fontId_ = 2;
+				else if(filename.find("maidenword") != std::string::npos) fontId_ = 3;
+				else fontId_ = 0;  // plain
+				return true;
+			}
 			const Texture& getTexture(unsigned int characterSize) const {
 				static Texture tex;
 				return tex;
@@ -175,6 +184,7 @@
 			float getKerning(unsigned int first, unsigned int second, unsigned int characterSize) const {
 				return 0.0f;
 			}
+			int getFontId() const { return fontId_; }
 		};
 
 		// Text class (stub)
@@ -571,14 +581,17 @@
 					auto str = text->getString();
 					auto size = text->getCharacterSize();
 					auto color = text->getFillColor();
+					auto font = text->getFont();
 					if(str.empty()) return;
+
+					int fontId = font ? font->getFontId() : 0;  // Default to plain font
 
 					EM_ASM_({
 						var ctxId = UTF8ToString($0);
 						var txt = UTF8ToString($1);
-						Module.drawTextToCtx(ctxId, txt, $2, $3, $4, $5, $6, $7, $8);
+						Module.drawTextToCtx(ctxId, txt, $2, $3, $4, $5, $6, $7, $8, $9);
 					}, contextId_.c_str(), str.c_str(),
-					   pos.x, pos.y, size, color.r, color.g, color.b, color.a);
+					   pos.x, pos.y, size, color.r, color.g, color.b, color.a, fontId);
 					return;
 				}
 
@@ -693,16 +706,19 @@
 					auto str = text->getString();
 					auto size = text->getCharacterSize();
 					auto color = text->getFillColor();
+					auto font = text->getFont();
 
 					if(str.empty()) return;
 
 					float drawX = pos.x + drawOffsetX_;
 					float drawY = pos.y + drawOffsetY_;
 
+					int fontId = font ? font->getFontId() : 0;  // Default to plain font
+
 					EM_ASM_({
 						var txt = UTF8ToString($0);
-						Module.drawTextToCtx('main', txt, $1, $2, $3, $4, $5, $6, $7);
-					}, str.c_str(), drawX, drawY, size, color.r, color.g, color.b, color.a);
+						Module.drawTextToCtx('main', txt, $1, $2, $3, $4, $5, $6, $7, $8);
+					}, str.c_str(), drawX, drawY, size, color.r, color.g, color.b, color.a, fontId);
 					return;
 				}
 
