@@ -276,6 +276,69 @@
     // Counter for unique RenderTexture IDs
     Module._rtCounter = 0;
 
+    // Image preloading
+    Module.imageLoadCount = 0;
+    Module.imageTotalCount = 0;
+
+    // Preload all game graphics
+    Module.preloadImages = function() {
+      var graphicsFiles = [
+        "bigscenpics.png", "blank.png", "booms.png", "buttons.png", "bwpats.png",
+        "dlgbtnred.png", "dlogbtnhelp.png", "dlogbtnled.png", "dlogbtnlg.png",
+        "dlogbtnmed.png", "dlogbtnsm.png", "dlogbtntall.png", "dlogpics.png",
+        "dlogscrollled.png", "dlogscrollwh.png", "edbuttons.png", "edsplash.png",
+        "fields.png", "fighthelp.png", "icon.png", "invenbtns.png", "inventory.png",
+        "missiles.png", "monst1.png", "monst10.png", "monst11.png", "monst2.png",
+        "monst3.png", "monst4.png", "monst5.png", "monst6.png", "monst7.png",
+        "monst8.png", "monst9.png", "objects.png", "outhelp.png", "pcedbuttons.png",
+        "pcedtitle.png", "pcs.png", "pixpats.png", "scenpics.png", "spidlogo.png",
+        "startanim.png", "startbut.png", "startsplash.png", "startup.png",
+        "statarea.png", "staticons.png", "talkportraits.png", "ter1.png", "ter10.png",
+        "ter11.png", "ter12.png", "ter13.png", "ter14.png", "ter19.png", "ter2.png",
+        "ter3.png", "ter4.png", "ter5.png", "ter6.png", "ter7.png", "ter8.png",
+        "ter9.png", "teranim.png", "termap.png", "terscreen.png", "textbar.png",
+        "tinyobj.png", "townhelp.png", "transcript.png", "trim.png", "vehicle.png"
+      ];
+
+      Module.imageTotalCount = graphicsFiles.length;
+      console.log("Preloading " + Module.imageTotalCount + " images...");
+
+      graphicsFiles.forEach(function(filename) {
+        var fullPath = "/data/graphics/" + filename;
+        try {
+          var data = FS.readFile(fullPath);
+          var blob = new Blob([data]);
+          var url = URL.createObjectURL(blob);
+          var img = new Image();
+
+          img.onload = function() {
+            Module.textureCache[fullPath] = img;
+            Module.textureDimensions[fullPath] = {
+              width: img.naturalWidth,
+              height: img.naturalHeight
+            };
+            Module.imageLoadCount++;
+            if (Module.imageLoadCount === Module.imageTotalCount) {
+              console.log("All images loaded (" + Module.imageLoadCount + ")");
+            }
+          };
+
+          img.onerror = function() {
+            Module.imageLoadCount++;
+            console.error("Failed to load image: " + fullPath);
+          };
+
+          img.src = url;
+        } catch(e) {
+          Module.imageLoadCount++;
+          console.error("Failed to read image file: " + fullPath, e);
+        }
+      });
+    };
+
+    // Start preloading images
+    Module.preloadImages();
+
     // Register the main canvas context
     Module.registerMainCanvas = function () {
       if (Module.drawContexts["main"]) return;
