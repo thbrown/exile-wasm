@@ -57,12 +57,6 @@ extern "C" {
 
 EMSCRIPTEN_KEEPALIVE
 void push_mouse_event(int type, int x, int y, int button) {
-	static int push_log_count = 0;
-	if(push_log_count < 5 && type == MOUSE_PRESSED) {
-		std::cout << "push_mouse_event: PRESSED at (" << x << "," << y << ") button=" << button << std::endl;
-		push_log_count++;
-	}
-
 	// Update current mouse position
 	sf::g_current_mouse_pos.x = x;
 	sf::g_current_mouse_pos.y = y;
@@ -94,12 +88,6 @@ void push_mouse_event(int type, int x, int y, int button) {
 
 EMSCRIPTEN_KEEPALIVE
 void push_key_event(int type, int keyCode, int shift, int ctrl, int alt) {
-	static int key_log_count = 0;
-	if(key_log_count < 10 && type == KEY_PRESSED_WEB) {
-		std::cout << "push_key_event: KEY_PRESSED keyCode=" << keyCode << " shift=" << shift << " ctrl=" << ctrl << " alt=" << alt << std::endl;
-		key_log_count++;
-	}
-
 	sf::Event evt;
 	switch(type) {
 		case KEY_PRESSED_WEB:
@@ -367,12 +355,6 @@ bool pollEvent(sf::Window& window, sf::Event& event) {
 	static int poll_log_count = 0;
 	static int last_queue_size = -1;
 	int queue_size = g_web_event_queue.size();
-
-	if(poll_log_count < 5 || (queue_size > 0 && queue_size != last_queue_size)) {
-		std::cout << "pollEvent called, queue size: " << queue_size << std::endl;
-		poll_log_count++;
-		last_queue_size = queue_size;
-	}
 
 	if(g_web_event_queue.empty()) return false;
 	event = g_web_event_queue.front();

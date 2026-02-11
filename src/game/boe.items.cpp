@@ -1065,17 +1065,8 @@ short select_pc(eSelectPC mode, std::string title, eSkill highlight_highest, boo
 		selectPc["all"].hide();
 	}
 
-	#ifdef __EMSCRIPTEN__
-	std::cout << "select_pc: about to call selectPc.run()" << std::endl;
-	#endif
 	selectPc.run();
-	#ifdef __EMSCRIPTEN__
-	std::cout << "select_pc: selectPc.run() returned" << std::endl;
-	#endif
 	item_hit = selectPc.getResult<short>();
-	#ifdef __EMSCRIPTEN__
-	std::cout << "select_pc: getResult returned " << item_hit << std::endl;
-	#endif
 
 	return item_hit;
 }

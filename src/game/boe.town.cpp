@@ -1228,16 +1228,8 @@ void bash_door(location where,short pc_num) {
 	ter_num_t terrain;
 	short r1,unlock_adjust;
 
-	#ifdef __EMSCRIPTEN__
-	EM_ASM({ console.log("bash_door: START"); });
-	#endif
-
 	terrain = univ.town->terrain(where.x,where.y);
 	r1 = get_ran(1,1,100) - 15 * univ.party[pc_num].stat_adj(eSkill::STRENGTH) + univ.town->difficulty * 4;
-
-	#ifdef __EMSCRIPTEN__
-	EM_ASM({ console.log("bash_door: after get_ran"); });
-	#endif
 
 	if(univ.scenario.ter_types[terrain].special != eTerSpec::UNLOCKABLE) {
 		add_string_to_buf("  Wrong terrain type.");
@@ -1246,28 +1238,15 @@ void bash_door(location where,short pc_num) {
 
 	unlock_adjust = univ.scenario.ter_types[terrain].flag2;
 	if(unlock_adjust >= 5 || r1 > (unlock_adjust * 15 + 40) || univ.scenario.ter_types[terrain].flag3 != 1)  {
-		#ifdef __EMSCRIPTEN__
-		EM_ASM({ console.log("bash_door: didn't work, about to damage_pc"); });
-		#endif
 		add_string_to_buf("  Didn't work.");
 		damage_pc(univ.party[pc_num],get_ran(1,1,4),eDamageType::SPECIAL,eRace::UNKNOWN);
-		#ifdef __EMSCRIPTEN__
-		EM_ASM({ console.log("bash_door: damage_pc done"); });
-		#endif
 	}
 	else {
-		#ifdef __EMSCRIPTEN__
-		EM_ASM({ console.log("bash_door: success, lock breaks"); });
-		#endif
 		add_string_to_buf("  Lock breaks.");
 		play_sound(9);
 		univ.town->terrain(where.x,where.y) = univ.scenario.ter_types[terrain].flag1;
 		univ.town->door_unlocked.push_back(where);
 	}
-
-	#ifdef __EMSCRIPTEN__
-	EM_ASM({ console.log("bash_door: END"); });
-	#endif
 }
 
 

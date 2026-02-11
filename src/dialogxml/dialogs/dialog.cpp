@@ -474,21 +474,12 @@ void cDialog::init(){
 }
 
 cDialog::~cDialog(){
-	#ifdef __EMSCRIPTEN__
-	std::cout << "cDialog destructor: deleting " << controls.size() << " controls" << std::endl;
-	#endif
 	ctrlIter iter = controls.begin();
 	while(iter != controls.end()){
 		delete iter->second;
 		iter++;
 	}
-	#ifdef __EMSCRIPTEN__
-	std::cout << "cDialog destructor: about to call win.close()" << std::endl;
-	#endif
 	win.close();
-	#ifdef __EMSCRIPTEN__
-	std::cout << "cDialog destructor: done" << std::endl;
-	#endif
 }
 
 bool cDialog::add(cControl* what, rectangle ctrl_frame, std::string key){

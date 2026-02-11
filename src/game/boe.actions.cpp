@@ -1008,15 +1008,7 @@ void handle_bash_pick(location destination, bool& did_something, bool& need_redr
 	else if(!is_unlockable(destination))
 		add_string_to_buf("  Wrong terrain type.");
 	else {
-		#ifdef __EMSCRIPTEN__
-		std::cout << "About to call select_pc for bash/pick" << std::endl;
-		EM_ASM({ console.log("BEFORE select_pc call"); });
-		#endif
 		short pc = select_pc(isBash ? eSelectPC::ONLY_LIVING : eSelectPC::ONLY_CAN_LOCKPICK, isBash ? "Who will bash?" : "Who will pick the lock?", isBash ? eSkill::STRENGTH : eSkill::LOCKPICKING);
-		#ifdef __EMSCRIPTEN__
-		EM_ASM({ console.log("AFTER select_pc returned"); });
-		std::cout << "select_pc returned: " << pc << std::endl;
-		#endif
 		// No one can (select_pc prints the message):
 		if(pc == 8){
 			return;
@@ -1027,14 +1019,8 @@ void handle_bash_pick(location destination, bool& did_something, bool& need_redr
 			need_redraw = true;
 			return;
 		}
-		#ifdef __EMSCRIPTEN__
-		std::cout << "About to call bash_door/pick_lock" << std::endl;
-		#endif
 		if(isBash) bash_door(destination, pc);
 		else pick_lock(destination, pc);
-		#ifdef __EMSCRIPTEN__
-		std::cout << "bash_door/pick_lock completed" << std::endl;
-		#endif
 	}
 	did_something = true;
 	overall_mode = MODE_TOWN;
@@ -1614,14 +1600,6 @@ bool handle_action(const sf::Event& event, cFramerateLimiter& fps_limiter) {
 
 	location the_point = mouse_window_coords();
 
-	#ifdef __EMSCRIPTEN__
-	static int handle_action_log_count = 0;
-	if(handle_action_log_count < 5) {
-		std::cout << "handle_action: the_point=(" << the_point.x << "," << the_point.y << ") overall_mode=" << static_cast<int>(overall_mode) << std::endl;
-		handle_action_log_count++;
-	}
-	#endif
-
 	end_scenario = false;
 	
 	if(false){
@@ -1737,14 +1715,6 @@ bool handle_action(const sf::Event& event, cFramerateLimiter& fps_limiter) {
 	if(mouse_to_terrain_coords(tile, true) && (is_out() || is_town() || is_combat())){
 		int i = tile.x;
 		int j = tile.y;
-
-		#ifdef __EMSCRIPTEN__
-		static int terrain_click_log_count = 0;
-		if(terrain_click_log_count < 5) {
-			std::cout << "handle_action: terrain click at tile (" << i << "," << j << ")" << std::endl;
-			terrain_click_log_count++;
-		}
-		#endif
 
 		location offset = {i - 4, j - 4};
 		handle_terrain_screen_actions(offset, true, right_button, did_something, need_redraw, need_reprint);

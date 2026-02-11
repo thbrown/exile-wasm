@@ -80,6 +80,15 @@ static void exit_snd_tool() {
 void init_snd_tool(){
 	for(auto& ch : chan) ch.init();
 	atexit(exit_snd_tool);
+
+#ifdef __EMSCRIPTEN__
+	// Preload all sounds for WASM
+	sf::initAudio();
+	for(int i = 0; i < 100; i++) {
+		std::string fname = "/data/sounds/" + sound_to_fname(i) + ".wav";
+		sf::preloadSound(fname);
+	}
+#endif
 }
 
 void play_sound(snd_num_t which, sf::Time delay, bool force) { // if which < 0, play asynch

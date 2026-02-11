@@ -10,22 +10,35 @@
 #define BOE_COMPAT_AUDIO_HPP
 
 #ifdef __EMSCRIPTEN__
-	// Web build: Stub audio for now (TODO: Implement Web Audio API)
+	// Web build: Web Audio API implementation
 	#include <string>
+	#include <emscripten.h>
 	#include "compat/time.hpp"
 
 	namespace sf {
 		// Sound buffer - holds audio data
 		class SoundBuffer {
+		private:
+			std::string filename_;
+
 		public:
 			SoundBuffer() {}
-			bool loadFromFile(const std::string& filename) { return true; } // Stub
+
+			bool loadFromFile(const std::string& filename) {
+				filename_ = filename;
+				// Audio should already be preloaded by init_snd_tool()
+				// Just store the filename for playback
+				return true;
+			}
+
 			bool loadFromMemory(const void* data, size_t sizeInBytes) { return true; }
 			const void* getSamples() const { return nullptr; }
 			unsigned int getSampleCount() const { return 0; }
 			unsigned int getSampleRate() const { return 44100; }
 			unsigned int getChannelCount() const { return 2; }
 			Time getDuration() const { return Time(); }
+
+			const std::string& getFilename() const { return filename_; }
 		};
 
 		// Sound - plays a sound buffer
@@ -49,7 +62,28 @@
 			Sound() {}
 			explicit Sound(const SoundBuffer& buffer) : buffer_(&buffer) {}
 
-			void play() { status_ = Status::Playing; }
+			void play() {
+				if (!buffer_) return;
+
+				const std::string& filename = buffer_->getFilename();
+				EM_ASM_({
+					var filename = UTF8ToString($0);
+
+					if (!Module.audioContext || !Module.audioBuffers[filename]) {
+						return; // Audio not loaded yet
+					}
+
+					try {
+						var source = Module.audioContext.createBufferSource();
+						source.buffer = Module.audioBuffers[filename];
+						source.connect(Module.audioContext.destination);
+						source.start(0);
+					} catch(e) {
+						console.error('Failed to play sound: ' + filename, e);
+					}
+				}, filename.c_str());
+			}
+
 			void pause() { status_ = Status::Paused; }
 			void stop() { status_ = Status::Stopped; }
 
@@ -63,7 +97,9 @@
 			bool getLoop() const { return loop_; }
 			float getVolume() const { return volume_; }
 			float getPitch() const { return pitch_; }
-			Status getStatus() const { return status_; }
+			// Always return Stopped for WASM so channels are immediately freed
+			// Web Audio plays sounds fire-and-forget, no need to track
+			Status getStatus() const { return Status::Stopped; }
 			Time getPlayingOffset() const { return Time(); }
 		};
 
@@ -104,6 +140,49 @@
 		namespace Listener {
 			inline void setGlobalVolume(float volume) {}
 			inline float getGlobalVolume() { return 100.f; }
+		}
+
+		// Audio initialization - preload all sounds
+		inline void initAudio() {
+			EM_ASM({
+				if (!Module.audioContext) {
+					Module.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+					Module.audioBuffers = {};
+					Module.audioLoadCount = 0;
+					Module.audioTotalCount = 0;
+				}
+			});
+		}
+
+		// Preload a sound file
+		inline void preloadSound(const std::string& filename) {
+			EM_ASM_({
+				var filename = UTF8ToString($0);
+				if (!Module.audioContext) return;
+
+				Module.audioTotalCount++;
+
+				try {
+					var data = FS.readFile(filename);
+					Module.audioContext.decodeAudioData(
+						data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
+						function(buffer) {
+							Module.audioBuffers[filename] = buffer;
+							Module.audioLoadCount++;
+							if (Module.audioLoadCount === Module.audioTotalCount) {
+								console.log('All audio files loaded (' + Module.audioLoadCount + ')');
+							}
+						},
+						function(err) {
+							Module.audioLoadCount++;
+							console.error('Failed to decode: ' + filename, err);
+						}
+					);
+				} catch(e) {
+					Module.audioLoadCount++;
+					console.error('Failed to load: ' + filename, e);
+				}
+			}, filename.c_str());
 		}
 	}
 
