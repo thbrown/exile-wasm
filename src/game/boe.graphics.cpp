@@ -1504,6 +1504,9 @@ void draw_rest_screen() {
 //      3 - pole  4 - club  5 - fireball hit  6 - squish  7 - cold
 //      8 - acid  9 - claw  10 - bite  11 - slime  12 - zap  13 - missile hit
 void boom_space(location where,short mode,short type,short damage,short sound) {
+#ifdef __EMSCRIPTEN__
+	EM_ASM_({console.log('boom_space called: type=', $0, 'damage=', $1, 'sound=', $2);}, type, damage, sound);
+#endif
 	location where_draw(4,4);
 	rectangle source_rect = {0,0,36,28},text_rect,dest_rect = {13,13,49,41},big_to = {13,13,337,265},store_rect;
 	short del_len;
@@ -1568,11 +1571,18 @@ void boom_space(location where,short mode,short type,short damage,short sound) {
 	dest_rect &= big_to;
 	
 	dest_rect.offset(win_to_rects[WINRECT_TERVIEW].topLeft());
-	
+
 	source_rect.offset(-store_rect.left + 28 * type,-store_rect.top);
+#ifdef __EMSCRIPTEN__
+	EM_ASM_({console.log('boom_space: drawing sprite at dest rect:', $0, $1, $2, $3);},
+		dest_rect.left, dest_rect.top, dest_rect.right, dest_rect.bottom);
+#endif
 	rect_draw_some_item(*ResMgr::graphics.get("booms"),source_rect,mainPtr(),dest_rect,sf::BlendAlpha);
 	
 	if(damage > 0 && dest_rect.right - dest_rect.left >= 28 && dest_rect.bottom - dest_rect.top >= 36) {
+#ifdef __EMSCRIPTEN__
+		EM_ASM_({console.log('boom_space: drawing damage number', $0);}, damage);
+#endif
 		TextStyle style;
 		style.lineHeight = 10;
 		text_rect = dest_rect;
@@ -1604,8 +1614,14 @@ void boom_space(location where,short mode,short type,short damage,short sound) {
 		if(!get_bool_pref("PlaySounds", true))
 			sf::sleep(time_in_ticks(del_len));
 	}
+	#else
+	// WASM: Use ASYNCIFY sleep to keep boom visible
+	// This is safe in main game loop (not nested inside dialog event loop)
+	if(fast_bang == 0 && !skip_boom_delay) {
+		// Shorter delay for WASM (300ms = ~18 ticks at 60fps)
+		emscripten_sleep(300);
+	}
 	#endif
-	// WASM: Skip boom delay to avoid nested ASYNCIFY sleep calls which can hang
 	redraw_terrain();
 	if(is_combat())
 		frame_active_pc(center);

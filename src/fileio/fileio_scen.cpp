@@ -2258,10 +2258,19 @@ void loadTownMapData(map_data&& data, int which, cScenario& scen) {
 static void readSpecialNodesFromStream(std::istream& stream, std::vector<cSpecial>& nodes, std::string name) {
 	std::string contents;
 	stream.seekg(0, std::ios::end);
-	contents.reserve(stream.tellg());
+	auto size = stream.tellg();
+	contents.reserve(size);
 	stream.seekg(0, std::ios::beg);
 	contents.assign(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+#ifdef __EMSCRIPTEN__
+	int file_size = static_cast<int>(size);
+	EM_ASM_({console.log('readSpecialNodesFromStream:', UTF8ToString($0), 'size=', $1, 'good?', $2);},
+		name.c_str(), file_size, stream.good());
+#endif
 	auto loaded = SpecialParser().parse(contents, name);
+#ifdef __EMSCRIPTEN__
+	EM_ASM_({console.log('readSpecialNodesFromStream: parsed', $0, 'nodes');}, loaded.size());
+#endif
 	if(loaded.size() == 0) return; // If there were no nodes, we're already done here.
 	nodes.resize(loaded.rbegin()->first + 1);
 	for(auto p : loaded)
@@ -2296,7 +2305,12 @@ bool load_scenario_v2(fs::path file_to_load, cScenario& scenario, eLoadScenario 
 		if(is_packed) return pack.getFile("scenario/" + relpath);
 		if(fin.is_open()) fin.close();
 		fin.clear();
-		fin.open((file_to_load/relpath).string().c_str());
+		auto full_path = (file_to_load/relpath).string();
+		fin.open(full_path.c_str());
+#ifdef __EMSCRIPTEN__
+		EM_ASM_({console.log('getFile:', UTF8ToString($0), 'good?', $1, 'fail?', $2);},
+			full_path.c_str(), fin.good(), fin.fail());
+#endif
 		// Yes, we're returning a reference to a local variable, but it's safe here,
 		// because the local is in the enclosing scope and this lambda exists within the same scope.
 		#ifdef __clang__

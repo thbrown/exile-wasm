@@ -2048,7 +2048,7 @@ void run_special(pending_special_type spec, short* a, short* b, bool* redraw) {
 // redraw - true if now need redraw
 void run_special(eSpecCtx which_mode, eSpecCtxType which_type, spec_num_t start_spec, location spec_loc, short* a, short* b, bool* redraw) {
 	int num_nodes = 0;
-	
+
 	// Make sure return pointers are valid
 	short dummy[2];
 	bool dummy2;
@@ -2228,7 +2228,7 @@ cSpecial get_node(spec_num_t cur_spec, eSpecCtxType cur_spec_type) {
 				return dummy_node;
 			}
 			if(cur_spec != minmax(0,univ.town->specials.size() - 1,cur_spec)) {
-				showError(fmt::format("The scenario called a town special node out of range: {}", cur_spec));
+				showError(fmt::format("The scenario called a town special node out of range: {} (size: {})", cur_spec, univ.town->specials.size()));
 				return dummy_node;
 			}
 			return univ.town->specials[cur_spec];
@@ -2643,7 +2643,13 @@ void oneshot_spec(const runtime_state& ctx) {
 			break;
 		case eSpecType::ONCE_DIALOG:
 			check_mess = false;
+#ifdef __EMSCRIPTEN__
+			EM_ASM_({console.log('ONCE_DIALOG: calling once_dialog, m1=', $0);}, spec.m1);
+#endif
 			dlg_res = once_dialog(univ, spec, ctx.cur_spec_type);
+#ifdef __EMSCRIPTEN__
+			EM_ASM_({console.log('ONCE_DIALOG: once_dialog returned', $0);}, dlg_res);
+#endif
 			if(dlg_res < 0) break;
 			if(spec.m3 > 0) {
 				if(dlg_res == 1) {

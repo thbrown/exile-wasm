@@ -2874,7 +2874,9 @@ void monster_attack(short who_att,iLiving* target) {
 				play_sound(2);
 			}
 			redraw_screen(REFRESH_STATS | REFRESH_TERRAIN | REFRESH_TRANS);
+			#ifndef __EMSCRIPTEN__
 			sf::sleep(time_in_ticks(2));
+			#endif
 			combat_posing_monster = -1;
 			draw_terrain(2);
 			combat_posing_monster = 100 + who_att;
@@ -3449,7 +3451,9 @@ bool monst_cast_mage(cCreature *caster,short targ) {
 						break;
 					j = get_ran(1,2,3);
 				}
+				#ifndef __EMSCRIPTEN__
 				sf::sleep(time_in_ticks(12)); // gives sound time to end
+				#endif
 				int x = get_ran(4,1,4);
 				for(short i = 0; i < j; i++){
 					play_sound(-61);
@@ -3522,7 +3526,9 @@ bool monst_cast_mage(cCreature *caster,short targ) {
 				x = get_ran(3,1,4);
 				play_sound(25);
 				play_sound(-61);
+				#ifndef __EMSCRIPTEN__
 				sf::sleep(time_in_ticks(12)); // gives sound time to end
+				#endif
 				summon_monster(85,caster->cur_loc,x,caster->attitude,caster->is_friendly());
 				break;
 			case eSpell::BLESS_MAJOR:

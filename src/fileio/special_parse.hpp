@@ -12,41 +12,26 @@
 #include "scenario/special.hpp"
 
 #ifndef __EMSCRIPTEN__
-	#include <boost/spirit/include/classic.hpp>
+#include <boost/spirit/include/classic.hpp>
 
-	enum eParseError {
-		generic_error,
-		double_def,
-		expect_op,
-		expect_sym,
-		expect_dat,
-		expect_eq,
-		expect_int,
-		expect_val,
-		expect_nl,
-		NUM_PARSE_ERR
-	};
+enum eParseError {
+	generic_error,
+	double_def,
+	expect_op,
+	expect_sym,
+	expect_dat,
+	expect_eq,
+	expect_int,
+	expect_val,
+	expect_nl,
+	NUM_PARSE_ERR
+};
 
-	namespace spirit = boost::spirit::classic;
-	typedef spirit::rule<> Rule;
-	typedef spirit::assertion<eParseError> Err;
-	typedef spirit::guard<eParseError> Guard;
-#else
-	// Web build: Parser not needed (runtime only)
-	enum eParseError {
-		generic_error,
-		NUM_PARSE_ERR
-	};
+namespace spirit = boost::spirit::classic;
+typedef spirit::rule<> Rule;
+typedef spirit::assertion<eParseError> Err;
+typedef spirit::guard<eParseError> Guard;
 
-	// Stub types for compatibility
-	struct Rule {
-		struct scanner_t {
-			typedef const char* iterator_t;
-		};
-	};
-#endif
-
-#ifndef __EMSCRIPTEN__
 class SpecialParser {
 	using Iter = Rule::scanner_t::iterator_t;
 	using ErrStatus = spirit::error_status<>;
@@ -100,19 +85,136 @@ public:
 	const char* what() const throw();
 };
 #else
-// Web build stubs (parser not needed at runtime)
+// WASM: Simple custom parser for .spec format
+#include <sstream>
+#include <cctype>
+
+enum eParseError {
+	generic_error,
+	NUM_PARSE_ERR
+};
+
 class SpecialParser {
 public:
 	SpecialParser() {}
+
 	std::map<size_t,cSpecial> parse(std::string code, std::string context) {
-		return std::map<size_t,cSpecial>();
+		std::map<size_t, cSpecial> specials;
+		std::istringstream stream(code);
+		std::string line;
+		cSpecial* current = nullptr;
+		size_t current_num = 0;
+
+		while(std::getline(stream, line)) {
+			// Skip empty lines and comments
+			if(line.empty() || line[0] == '#') continue;
+
+			// Trim whitespace
+			size_t start = line.find_first_not_of(" \t\r");
+			if(start == std::string::npos) continue;
+			line = line.substr(start);
+
+			if(line[0] == '@') {
+				// New special node definition: @type-name = number
+				size_t eq_pos = line.find('=');
+				if(eq_pos != std::string::npos) {
+					std::string type_str = line.substr(1, eq_pos - 1);
+					// Trim type_str
+					size_t type_end = type_str.find_last_not_of(" \t");
+					if(type_end != std::string::npos) type_str = type_str.substr(0, type_end + 1);
+
+					std::string num_str = line.substr(eq_pos + 1);
+					current_num = std::stoi(num_str);
+
+					specials[current_num] = cSpecial();
+					current = &specials[current_num];
+					current->type = parseSpecType(type_str);
+				}
+			} else if(current) {
+				// Field definition: field_name val1, val2, ...
+				size_t space_pos = line.find_first_of(" \t");
+				if(space_pos != std::string::npos) {
+					std::string field = line.substr(0, space_pos);
+					std::string values_str = line.substr(space_pos + 1);
+
+					// Parse comma-separated values
+					std::vector<int> values;
+					std::istringstream val_stream(values_str);
+					std::string val;
+					while(std::getline(val_stream, val, ',')) {
+						// Trim and parse
+						size_t val_start = val.find_first_not_of(" \t");
+						if(val_start != std::string::npos) {
+							values.push_back(std::stoi(val.substr(val_start)));
+						}
+					}
+
+					// Assign to appropriate field
+					assignField(*current, field, values);
+				}
+			}
+		}
+
+		return specials;
+	}
+
+private:
+	eSpecType parseSpecType(const std::string& type) {
+		// Opcode mappings from rsrc/strings/specials-opcodes.txt
+		if(type == "set-sdf") return eSpecType::SET_SDF;
+		if(type == "inc-sdf") return eSpecType::INC_SDF;
+		if(type == "disp-msg") return eSpecType::DISPLAY_MSG;
+		if(type == "start-shop") return eSpecType::ENTER_SHOP;
+		if(type == "disp-sm-msg") return eSpecType::DISPLAY_SM_MSG;
+		if(type == "flip-sdf") return eSpecType::FLIP_SDF;
+		if(type == "story-dlog") return eSpecType::STORY_DIALOG;
+		if(type == "block-move") return eSpecType::CANT_ENTER;
+		if(type == "change-time") return eSpecType::CHANGE_TIME;
+		if(type == "rest") return eSpecType::REST;
+		if(type == "title-msg") return eSpecType::TITLED_MSG;
+		if(type == "end-scen") return eSpecType::END_SCENARIO;
+		if(type == "once-give-item") return eSpecType::ONCE_GIVE_ITEM;
+		if(type == "once-give-spec-item") return eSpecType::ONCE_GIVE_SPEC_ITEM;
+		if(type == "once") return eSpecType::ONCE_NULL;
+		if(type == "once-set-sdf") return eSpecType::ONCE_SET_SDF;
+		if(type == "once-disp-msg") return eSpecType::ONCE_DISPLAY_MSG;
+		if(type == "once-dlog") return eSpecType::ONCE_DIALOG;
+		if(type == "once-give-dlog") return eSpecType::ONCE_GIVE_ITEM_DIALOG;
+		if(type == "once-out-encounter") return eSpecType::ONCE_OUT_ENCOUNTER;
+		if(type == "once-town-encounter") return eSpecType::ONCE_TOWN_ENCOUNTER;
+		if(type == "once-trap") return eSpecType::ONCE_TRAP;
+		return eSpecType::NONE;
+	}
+
+	void assignField(cSpecial& spec, const std::string& field, const std::vector<int>& values) {
+		if(field == "sdf" && values.size() >= 2) {
+			spec.sd1 = values[0];
+			spec.sd2 = values[1];
+		} else if(field == "msg" && values.size() >= 3) {
+			spec.m1 = values[0];
+			spec.m2 = values[1];
+			spec.m3 = values[2];
+		} else if(field == "pic" && values.size() >= 2) {
+			spec.pic = values[0];
+			spec.pictype = values[1];
+		} else if(field == "ex1" && values.size() >= 3) {
+			spec.ex1a = values[0];
+			spec.ex1b = values[1];
+			spec.ex1c = values[2];
+		} else if(field == "ex2" && values.size() >= 3) {
+			spec.ex2a = values[0];
+			spec.ex2b = values[1];
+			spec.ex2c = values[2];
+		} else if(field == "goto" && values.size() >= 1) {
+			spec.jumpto = values[0];
+		}
 	}
 };
 
 class xSpecParseError : public std::exception {
 public:
 	xSpecParseError(std::string found, eParseError expect, int line, int col, std::string file) {}
-	const char* what() const throw() { return "Parser not available in web build"; }
+	const char* what() const throw() { return "Special parse error"; }
 };
 #endif
 

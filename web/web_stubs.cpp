@@ -128,36 +128,14 @@ namespace fs = std::filesystem;
 // Forward declarations
 class cDialog;
 
-// Dialog functions (TODO: Implement properly)
-void showError(std::string msg, cDialog* parent) {
-	std::cerr << "Error: " << msg << std::endl;
-}
-
-void showWarning(std::string msg, cDialog* parent) {
-	std::cerr << "Warning: " << msg << std::endl;
-}
-
-void showWarning(std::string title, std::string msg, cDialog* parent) {
-	std::cerr << "Warning [" << title << "]: " << msg << std::endl;
-}
-
-// Help system (TODO: Implement properly)
-void give_help(short help1, short help2, bool force) {
-	// Stub - would show help dialog
-}
-
-void give_help(short help1, short help2, cDialog& parent, bool force) {
-	// Stub - would show help dialog
-}
+// Dialog functions now provided by src/dialogxml/dialogs/strdlog.cpp
+// (showError, showWarning, showFatalError, give_help)
 
 // NOTE: Enum stream operators now implemented in estreams.cpp
 // NOTE: operator* for eSpell, eAlchemy, eEnchant now in spell.cpp, alchemy.cpp, enchant.cpp
 // NOTE: get_str() now in res_strings.cpp
 
-// Additional dialog function overload
-void showError(std::string title, std::string msg, cDialog* parent) {
-	std::cerr << "Error [" << title << "]: " << msg << std::endl;
-}
+// showError(title, msg) now provided by strdlog.cpp
 
 // NOTE: load_map() now implemented in map_parse.cpp
 
@@ -272,9 +250,7 @@ void set_cursor(cursor_type type) {
 	// Stub - would set cursor appearance
 }
 
-void showFatalError(std::string msg, cDialog* parent) {
-	std::cerr << "Fatal Error: " << msg << std::endl;
-}
+// showFatalError now provided by strdlog.cpp
 
 // Note: cControl, cTextMsg, cChoiceDlog now provided by dialogxml system
 
@@ -285,6 +261,19 @@ int get_int_pref(std::string key, int defaultVal) {
 
 double get_float_pref(std::string key, double defaultVal) {
 	return defaultVal;
+}
+
+std::vector<int> get_iarray_pref(std::string key) {
+	return std::vector<int>();  // Return empty array
+}
+
+void append_iarray_pref(std::string key, int value) {
+	// Stub - would append to integer array preference
+}
+
+void set_clipboard(std::string text) {
+	// Stub - would copy text to clipboard
+	std::cout << "Copy to clipboard: " << text << std::endl;
 }
 
 // Window management stubs
@@ -310,15 +299,9 @@ void adjust_monst_menu() {
 	// Stub - would update monster menu
 }
 
-// Forward declarations for dialog enums/types
-enum class ePicType {
-	// Stub - picture type enum
-};
+// ePicType now provided by dialogxml/widgets/pictypes.hpp
 
-// Game dialog stubs
-int custom_choice_dialog(std::array<std::string, 6>& choices, short numChoices, ePicType picType, std::array<short, 3>& pics, bool allowCancel, short defaultChoice, int helpId, cDialog* parent) {
-	return 0;  // Stub - would show custom choice dialog
-}
+// custom_choice_dialog now provided by src/dialogxml/dialogs/3choice.cpp
 
 void pick_race_abil(class cPlayer* pc, short mode, cDialog* parent) {
 	// Stub - would show race/ability picker
@@ -526,15 +509,7 @@ void init_menubar() {
 }
 
 // Dialog functions
-class cDialog;
-class cUniverse;
-class cSpecial;
-enum class eSpecCtxType;
-
-bool once_dialog(cUniverse& univ, cSpecial& spec, eSpecCtxType ctx, cDialog* parent) {
-	// Stub - would show a once-only dialog
-	return false;
-}
+// once_dialog is now provided by src/dialogxml/dialogs/3choice.cpp
 
 int get_num_response(short min, short max, std::string prompt, std::vector<std::string> opts, std::optional<short> def, short help, std::string, bool*) {
 	// Stub - would show a numeric input dialog
@@ -545,18 +520,7 @@ int get_num_response(short min, short max, std::string prompt, std::vector<std::
 class cDialog;
 enum class ePicType;
 
-// cStrDlog class (string dialog)
-struct cStrDlog {
-	cStrDlog(std::string title, std::string prompt, std::string defaultVal, short maxLen, ePicType picType, cDialog* parent);
-	void show();
-	bool setSound(int sound);
-	bool setRecordHandler(std::function<void (cDialog&)> handler);
-};
-
-cStrDlog::cStrDlog(std::string title, std::string prompt, std::string defaultVal, short maxLen, ePicType picType, cDialog* parent) {}
-void cStrDlog::show() {}
-bool cStrDlog::setSound(int sound) { return true; }
-bool cStrDlog::setRecordHandler(std::function<void (cDialog&)> handler) { return true; }
+// cStrDlog class now provided by src/dialogxml/dialogs/strdlog.cpp
 
 // Note: iComponent, iEventListener, iDrawable are now defined in their respective headers
 

@@ -309,13 +309,22 @@ void iLiving::cast_spell_note(eSpell spell) const {
 }
 
 void iLiving::damaged_msg(int how_much,int how_much_spec) const {
-	if(!print_result) return;
+#ifdef __EMSCRIPTEN__
+	EM_ASM_({console.log('damaged_msg called:', $0, $1);}, how_much, how_much_spec);
+#endif
+	if(!print_result) {
+#ifdef __EMSCRIPTEN__
+		EM_ASM(console.log('damaged_msg: print_result is null!'));
+#endif
+		return;
+	}
 	if(how_much == 0 && how_much_spec == 0) return;
 #ifndef __EMSCRIPTEN__
 	if(how_much_spec > 0)
 		print_result(fmt::format("  {} takes {}+{}", get_name(), how_much, how_much_spec));
 	else print_result(fmt::format("  {} takes {}", get_name(), how_much));
 #else
+	EM_ASM(console.log('damaged_msg: calling print_result'));
 	if(how_much_spec > 0)
 		print_result("  " + get_name() + " takes " + std::to_string(how_much) + "+" + std::to_string(how_much_spec));
 	else print_result("  " + get_name() + " takes " + std::to_string(how_much));

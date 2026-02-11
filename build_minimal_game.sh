@@ -82,6 +82,8 @@ SOURCES=(
     "$SOURCE_DIR/dialogxml/dialogs/dialog.cpp"
     "$SOURCE_DIR/dialogxml/dialogs/choicedlog.cpp"
     "$SOURCE_DIR/dialogxml/dialogs/pictchoice.cpp"
+    "$SOURCE_DIR/dialogxml/dialogs/3choice.cpp"
+    "$SOURCE_DIR/dialogxml/dialogs/strdlog.cpp"
     "$SOURCE_DIR/dialogxml/widgets/pict.cpp"
     "$SOURCE_DIR/dialogxml/widgets/control.cpp"
     "$SOURCE_DIR/dialogxml/widgets/message.cpp"
@@ -90,6 +92,7 @@ SOURCES=(
     "$SOURCE_DIR/dialogxml/widgets/container.cpp"
     "$SOURCE_DIR/dialogxml/widgets/scrollbar.cpp"
     "$SOURCE_DIR/dialogxml/widgets/button.cpp"
+    "$SOURCE_DIR/dialogxml/widgets/basicbtns.cpp"
     "$SOURCE_DIR/dialogxml/keycodes.cpp"
     "$SOURCE_DIR/sounds.cpp"
     "$SOURCE_DIR/fileio/estreams.cpp"  # Now has ptr_set compatibility layer
