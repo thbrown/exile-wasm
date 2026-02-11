@@ -150,6 +150,8 @@ EMCC_FLAGS=(
     "data@/data"
     "--preload-file"
     "rsrc/scenarios@/Blades of Exile Scenarios"
+    "--preload-file"
+    "rsrc/dialogs@/rsrc/dialogs"
     "-g"
     "-std=c++17"
     "-lembind"

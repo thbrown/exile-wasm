@@ -516,8 +516,23 @@ bool check_special_terrain(location where_check,eSpecCtx mode,cPlayer& which_pc,
 				if((door_pc = select_pc(eSelectPC::ONLY_CAN_LOCKPICK, "Who will pick the lock?", eSkill::LOCKPICKING)) < 6)
 					pick_lock(where_check,door_pc);
 			}else{
-				if((door_pc = select_pc(eSelectPC::ONLY_LIVING, "Who will bash?", eSkill::STRENGTH)) < 6)
+				#ifdef __EMSCRIPTEN__
+				EM_ASM({ console.log("SPECIALS: About to call select_pc for bash"); });
+				#endif
+				if((door_pc = select_pc(eSelectPC::ONLY_LIVING, "Who will bash?", eSkill::STRENGTH)) < 6) {
+					#ifdef __EMSCRIPTEN__
+					EM_ASM({ console.log("SPECIALS: select_pc returned, about to call bash_door"); });
+					#endif
 					bash_door(where_check,door_pc);
+					#ifdef __EMSCRIPTEN__
+					EM_ASM({ console.log("SPECIALS: bash_door completed"); });
+					#endif
+				}
+				#ifdef __EMSCRIPTEN__
+				else {
+					EM_ASM({ console.log("SPECIALS: select_pc returned >= 6, skipping bash_door"); });
+				}
+				#endif
 			}
 			break;
 		case eTerSpec::WILDERNESS_CAVE:

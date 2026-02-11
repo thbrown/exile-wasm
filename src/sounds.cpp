@@ -85,39 +85,47 @@ void init_snd_tool(){
 void play_sound(snd_num_t which, sf::Time delay, bool force) { // if which < 0, play asynch
 	std::shared_ptr<const sf::SoundBuffer> sndhandle;
 	if(!force && !get_bool_pref("PlaySounds", true)) {
+		#ifndef __EMSCRIPTEN__
 		if(which >= 0)
 			sf::sleep(delay);
+		#endif
 		return;
 	}
-	
+
 	std::string sndname = sound_to_fname(abs(which));
-	
+
 	if(abs(which) >= 100 && !ResMgr::sounds.have(sndname)) {
 		std::cerr << "Error: Sound #" << abs(which) << " does not exist." << std::endl;
 		return;
 	}
-	
+
 	channel++;
-	
+
 	if(channel >= numchannel) channel = 0;
-	
+
 	if(!sound_going(abs(which)))
 		sndhandle = &ResMgr::sounds.get(sndname);
-	
+
 	if(which > 0)
  		if(always_async.find(which) != always_async.end())
 			which *= -1;
-	
+
  	if(sndhandle) {
 		chan[channel].play(sndhandle);
-		
+
+		#ifndef __EMSCRIPTEN__
 		if(which > 0) {
 			while(chan[channel].isPlaying());
 		}
+		#endif
+		// WASM: Skip busy-wait to avoid blocking
 		snd_played[channel] = abs(which);
 	}
+	#ifndef __EMSCRIPTEN__
 	if(which < 0)
 		sf::sleep(time_in_ticks(sound_delay[-1 * which]));
+	#endif
+	// WASM: Skip sound delays to avoid nested ASYNCIFY sleep calls
 }
 
 void one_sound(snd_num_t which) {
