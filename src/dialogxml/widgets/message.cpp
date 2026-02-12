@@ -128,7 +128,7 @@ void cTextMsg::calculate_layout() {
 		to_rect.left += 3;
 		text_mode = eTextMode::LEFT_BOTTOM;
 	}else {
-		style.lineHeight = textSize + 2;
+		style.lineHeight = textSize + 4;
 		to_rect.inset(4,4);
 		text_mode = eTextMode::WRAP;
 		break_info = calculate_line_wrapping(to_rect, msg, style);
@@ -145,7 +145,7 @@ void cTextMsg::recalcRect() {
 		calculate_layout();
 		return;
 	}
-	style.lineHeight = textSize + 2;
+	style.lineHeight = textSize + 4;
 	size_t lines = 1, cur_line_chars = 0, max_line_chars = 0;
 	// Substitute | with newlines for measuring
 	for(auto& c : test) {

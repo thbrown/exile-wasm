@@ -9,11 +9,39 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+
+#ifndef __EMSCRIPTEN__
 #include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;
+#else
+// Minimal filesystem stub for WASM (prefs won't persist but will work in-memory)
+namespace fs {
+	struct path {
+		std::string p;
+		path() {}
+		path(const char* s) : p(s) {}
+		path(std::string s) : p(s) {}
+		std::string string() const { return p; }
+		const char* c_str() const { return p.c_str(); }
+		path parent_path() const { return path(); }
+		path operator/(const char* s) const { return path(p + "/" + s); }
+	};
+	inline void create_directories(const path&) {}
+}
+#endif
+
 #include <boost/any.hpp>
 #include <boost/lexical_cast.hpp>
 
-std::map<std::string,boost::any> prefs;
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
+// Use Meyers singleton to ensure single instance across all compilation units (critical for WASM)
+static std::map<std::string,boost::any>& prefs() {
+	static std::map<std::string,boost::any> instance;
+	return instance;
+}
 using iarray = std::vector<int>;
 static bool prefsLoaded = false, prefsDirty = false;
 
@@ -29,39 +57,42 @@ static bool prefsLoaded = false, prefsDirty = false;
 void set_pref(std::string keypath, bool value) {
 	SET_PREF_MAC(bool);
 	prefsDirty = true;
-	prefs[keypath] = value;
+	prefsLoaded = true;  // Ensure sync_prefs will save instead of load
+	prefs()[keypath] = value;
 }
 
 bool get_bool_pref(std::string keypath, bool fallback) {
 	GET_PREF_MAC(bool);
-	if(prefs.find(keypath) == prefs.end()) return fallback;
-	if(prefs[keypath].type() == typeid(bool)) return boost::any_cast<bool>(prefs[keypath]);
+	if(prefs().find(keypath) == prefs().end()) return fallback;
+	if(prefs()[keypath].type() == typeid(bool)) return boost::any_cast<bool>(prefs()[keypath]);
 	return fallback;
 }
 
 void set_pref(std::string keypath, int value) {
 	SET_PREF_MAC(int);
 	prefsDirty = true;
-	prefs[keypath] = value;
+	prefsLoaded = true;  // Ensure sync_prefs will save instead of load
+	prefs()[keypath] = value;
 }
 
 int get_int_pref(std::string keypath, int fallback) {
 	GET_PREF_MAC(int);
-	if(prefs.find(keypath) == prefs.end()) return fallback;
-	if(prefs[keypath].type() == typeid(int)) return boost::any_cast<int>(prefs[keypath]);
+	if(prefs().find(keypath) == prefs().end()) return fallback;
+	if(prefs()[keypath].type() == typeid(int)) return boost::any_cast<int>(prefs()[keypath]);
 	return fallback;
 }
 
 void set_pref(std::string keypath, double value) {
 	SET_PREF_MAC(double);
 	prefsDirty = true;
-	prefs[keypath] = value;
+	prefsLoaded = true;  // Ensure sync_prefs will save instead of load
+	prefs()[keypath] = value;
 }
 
 double get_float_pref(std::string keypath, double fallback) {
 	GET_PREF_MAC(double);
-	if(prefs.find(keypath) == prefs.end()) return fallback;
-	if(prefs[keypath].type() == typeid(double)) return boost::any_cast<double>(prefs[keypath]);
+	if(prefs().find(keypath) == prefs().end()) return fallback;
+	if(prefs()[keypath].type() == typeid(double)) return boost::any_cast<double>(prefs()[keypath]);
 	return fallback;
 }
 
@@ -73,13 +104,32 @@ void append_iarray_pref(std::string keypath, int value) {
 	}
 	#endif
 	prefsDirty = true;
-	if(prefs.find(keypath) == prefs.end() || prefs[keypath].type() != typeid(iarray))
-		prefs[keypath] = iarray{value};
-	else {
-		iarray& arr = boost::any_cast<iarray&>(prefs[keypath]);
+	prefsLoaded = true;  // Ensure sync_prefs will save instead of load
+
+	#ifdef __EMSCRIPTEN__
+	bool keyExists = prefs().find(keypath) != prefs().end();
+	bool isArray = keyExists && prefs()[keypath].type() == typeid(iarray);
+	printf("[PREFS] append_iarray_pref: key='%s' keyExists=%d isArray=%d value=%d\n", keypath.c_str(), keyExists, isArray, value);
+	#endif
+
+	if(prefs().find(keypath) == prefs().end() || prefs()[keypath].type() != typeid(iarray)) {
+		prefs()[keypath] = iarray{value};
+		#ifdef __EMSCRIPTEN__
+		printf("[PREFS]   -> Created new array\n");
+		#endif
+	} else {
+		iarray& arr = boost::any_cast<iarray&>(prefs()[keypath]);
 		arr.push_back(value);
-		prefs[keypath] = arr;
+		prefs()[keypath] = arr;
+		#ifdef __EMSCRIPTEN__
+		printf("[PREFS]   -> Appended to existing array, new size=%zu\n", arr.size());
+		#endif
 	}
+
+	#ifdef __EMSCRIPTEN__
+	iarray verify = boost::any_cast<iarray>(prefs()[keypath]);
+	printf("[PREFS]   -> Verification: array size in map=%zu\n", verify.size());
+	#endif
 }
 
 std::vector<int> get_iarray_pref(std::string keypath) {
@@ -89,22 +139,23 @@ std::vector<int> get_iarray_pref(std::string keypath) {
 		return get_iarray_pref_mac(keypath);
 	}
 	#endif
-	if(prefs.find(keypath) == prefs.end()) return {};
-	if(prefs[keypath].type() == typeid(iarray)) return boost::any_cast<iarray&>(prefs[keypath]);
+	if(prefs().find(keypath) == prefs().end()) return {};
+	if(prefs()[keypath].type() == typeid(iarray)) return boost::any_cast<iarray&>(prefs()[keypath]);
 	return {};
 }
 
 void set_pref(std::string keypath, std::string value) {
 	SET_PREF_MAC(std::string);
 	prefsDirty = true;
-	prefs[keypath] = value;
+	prefsLoaded = true;  // Ensure sync_prefs will save instead of load
+	prefs()[keypath] = value;
 }
 
 std::string get_string_pref(std::string keypath, std::string fallback) {
 	using std::string;
 	GET_PREF_MAC(string);
-	if(prefs.find(keypath) == prefs.end()) return fallback;
-	if(prefs[keypath].type() == typeid(std::string)) return boost::any_cast<std::string>(prefs[keypath]);
+	if(prefs().find(keypath) == prefs().end()) return fallback;
+	if(prefs()[keypath].type() == typeid(std::string)) return boost::any_cast<std::string>(prefs()[keypath]);
 	return fallback;
 }
 
@@ -117,8 +168,8 @@ void clear_pref(std::string keypath) {
 	}
 	#endif
 	prefsDirty = true;
-	auto iter = prefs.find(keypath);
-	if(iter != prefs.end()) prefs.erase(iter);
+	auto iter = prefs().find(keypath);
+	if(iter != prefs().end()) prefs().erase(iter);
 }
 
 static bool save_prefs(fs::path fpath) {
@@ -128,7 +179,7 @@ static bool save_prefs(fs::path fpath) {
 	if(!prefsDirty) return true;
 	fs::create_directories(fpath.parent_path());
 	std::ofstream fout(fpath.string().c_str());
-	for(auto& kv : prefs) {
+	for(auto& kv : prefs()) {
 		if(kv.second.type() == typeid(iarray)) {
 			const iarray& arr = boost::any_cast<iarray&>(kv.second);
 			fout << kv.first << " = [";
@@ -203,7 +254,7 @@ static bool load_prefs(std::istream& in) {
 			temp_prefs[key] = boost::lexical_cast<int>(val);
 		}
 	}
-	prefs.swap(temp_prefs);
+	prefs().swap(temp_prefs);
 
 	if (recording) {
 		record_action("load_prefs", prefs_recording.str(), true);

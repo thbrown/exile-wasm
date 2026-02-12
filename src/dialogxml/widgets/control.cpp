@@ -531,6 +531,10 @@ bool cControl::parseAttribute(ticpp::Attribute& attr, std::string tagName, std::
 	}
 	if(name == "width") {
 		attr.GetValue(&width);
+#ifdef __EMSCRIPTEN__
+		// WASM: Scale up width to prevent premature text wrapping
+		width = static_cast<int>(width * 1.15);
+#endif
 		return true;
 	}
 	if(name == "height") {

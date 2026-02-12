@@ -133,14 +133,52 @@ static void give_help(short help1,short help2,cDialog* parent,bool help_forced) 
 		throw std::string {"Tried to call give_help() without setting help_text_rsrc!"};
 	}
 
+	#ifdef __EMSCRIPTEN__
+	auto receivedHelp = get_iarray_pref("ReceivedHelp");
+	bool showInstantHelp = get_bool_pref("ShowInstantHelp", true);
+	bool alreadyReceived = get_iarray_pref_contains("ReceivedHelp", help1);
+	EM_ASM_({
+		console.log('Instant Help Debug: help1=', $0, 'showInstantHelp=', $1, 'alreadyReceived=', $2, 'receivedCount=', $3);
+	}, help1, showInstantHelp, alreadyReceived, receivedHelp.size());
+	#endif
+
 	if(!help_forced && help_text_rsrc == "help" &&
 		(!get_bool_pref("ShowInstantHelp", true) || get_iarray_pref_contains("ReceivedHelp", help1))){
+		#ifdef __EMSCRIPTEN__
+		EM_ASM({console.log('  -> Skipping (already shown or disabled)');});
+		#endif
 		return;
 	}
+
+	#ifdef __EMSCRIPTEN__
+	EM_ASM({console.log('  -> Showing help and adding to ReceivedHelp');});
+	EM_ASM({console.log('  -> About to call append_iarray_pref...');});
+	#endif
+
 	append_iarray_pref("ReceivedHelp", help1);
+
+	#ifdef __EMSCRIPTEN__
+	EM_ASM({console.log('  -> append_iarray_pref returned');});
+	auto check1 = get_iarray_pref("ReceivedHelp");
+	EM_ASM_({console.log('  -> After 1st append: size=', $0);}, check1.size());
+	#endif
+
 	if(help2 != -1)
 		append_iarray_pref("ReceivedHelp", help2);
+
+	#ifdef __EMSCRIPTEN__
+	auto check2 = get_iarray_pref("ReceivedHelp");
+	EM_ASM_({console.log('  -> After 2nd append (if called): size=', $0);}, check2.size());
+	#endif
+
 	sync_prefs();
+
+	#ifdef __EMSCRIPTEN__
+	auto afterAdd = get_iarray_pref("ReceivedHelp");
+	EM_ASM_({
+		console.log('  -> After sync_prefs: receivedCount=', $0);
+	}, afterAdd.size());
+	#endif
 	str1 = get_str(help_text_rsrc,help1);
 	if(help2 > 0)
 		str2 = get_str("help",help2);

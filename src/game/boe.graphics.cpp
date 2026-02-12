@@ -1580,9 +1580,6 @@ void boom_space(location where,short mode,short type,short damage,short sound) {
 	rect_draw_some_item(*ResMgr::graphics.get("booms"),source_rect,mainPtr(),dest_rect,sf::BlendAlpha);
 	
 	if(damage > 0 && dest_rect.right - dest_rect.left >= 28 && dest_rect.bottom - dest_rect.top >= 36) {
-#ifdef __EMSCRIPTEN__
-		EM_ASM_({console.log('boom_space: drawing damage number', $0);}, damage);
-#endif
 		TextStyle style;
 		style.lineHeight = 10;
 		text_rect = dest_rect;

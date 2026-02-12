@@ -276,7 +276,7 @@ static void win_draw_string(sf::RenderTarget& dest_window,rectangle dest_rect,st
 	
 	// Special stuff
 	size_t iHilite = 0;
-	
+
 	location moveTo;
 	line_height -= 2; // TODO: ...why are we arbitrarily reducing the line height from the requested value?
 

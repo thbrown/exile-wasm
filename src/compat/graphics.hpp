@@ -156,6 +156,10 @@
 			float advance = 10.0f;
 			FloatRect bounds;
 			IntRect textureRect;
+
+			// Constructor for setting advance
+			Glyph() = default;
+			Glyph(float adv) : advance(adv) {}
 		};
 
 		// String type for SFML compatibility
@@ -179,7 +183,10 @@
 				return tex;
 			}
 			Glyph getGlyph(unsigned int codePoint, unsigned int characterSize, bool bold) const {
-				return Glyph();
+				// Return realistic glyph advance for monospace font
+				// Use 0.7 * characterSize to match Canvas 2D rendering
+				float advance = static_cast<float>(characterSize) * 0.7f;
+				return Glyph(advance);
 			}
 			float getKerning(unsigned int first, unsigned int second, unsigned int characterSize) const {
 				return 0.0f;
@@ -225,7 +232,7 @@
 
 			FloatRect getLocalBounds() const {
 				// Rough estimate: 10 pixels per character
-				return FloatRect(0, 0, static_cast<float>(string_.length() * characterSize_ * 0.6f), static_cast<float>(characterSize_));
+				return FloatRect(0, 0, static_cast<float>(string_.length() * characterSize_ * 0.6f), static_cast<float>(characterSize_ * 1.3f));
 			}
 			FloatRect getGlobalBounds() const {
 				FloatRect local = getLocalBounds();
@@ -591,7 +598,7 @@
 						var txt = UTF8ToString($1);
 						Module.drawTextToCtx(ctxId, txt, $2, $3, $4, $5, $6, $7, $8, $9);
 					}, contextId_.c_str(), str.c_str(),
-					   pos.x, pos.y, size, color.r, color.g, color.b, color.a, fontId);
+					   pos.x, pos.y + (size * 0.3f), size, color.r, color.g, color.b, color.a, fontId);
 					return;
 				}
 
@@ -718,7 +725,7 @@
 					EM_ASM_({
 						var txt = UTF8ToString($0);
 						Module.drawTextToCtx('main', txt, $1, $2, $3, $4, $5, $6, $7, $8);
-					}, str.c_str(), drawX, drawY, size, color.r, color.g, color.b, color.a, fontId);
+					}, str.c_str(), drawX, drawY + (size * 0.3f), size, color.r, color.g, color.b, color.a, fontId);
 					return;
 				}
 

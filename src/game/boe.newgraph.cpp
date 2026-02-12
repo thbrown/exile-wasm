@@ -1067,6 +1067,11 @@ void place_talk_str(std::string str_to_place,std::string str_to_place2,short col
 
 void refresh_talking() {
 	rectangle tempRect(talk_gworld());
+	#ifdef __EMSCRIPTEN__
+	EM_ASM_({
+		console.log('refresh_talking: talk_area_rect top=', $0, 'left=', $1, 'bottom=', $2, 'right=', $3);
+	}, talk_area_rect.top, talk_area_rect.left, talk_area_rect.bottom, talk_area_rect.right);
+	#endif
 	rect_draw_some_item(talk_gworld(),tempRect,mainPtr(),talk_area_rect);
 	place_talk_face();
 }

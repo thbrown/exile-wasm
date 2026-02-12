@@ -263,12 +263,51 @@ double get_float_pref(std::string key, double defaultVal) {
 	return defaultVal;
 }
 
+// Simple in-memory preferences implementation for WASM
+// (Real prefs.cpp has too many dependencies - boost::any, boost::filesystem, etc.)
+static std::map<std::string, bool> boolPrefs;
+static std::map<std::string, int> intPrefs;
+static std::map<std::string, double> doublePrefs;
+static std::map<std::string, std::vector<int>> iarrayPrefs;
+
+bool get_bool_pref(std::string key, bool defaultVal) {
+	auto it = boolPrefs.find(key);
+	return it != boolPrefs.end() ? it->second : defaultVal;
+}
+
+void set_pref(std::string key, bool val) {
+	boolPrefs[key] = val;
+}
+
+void set_pref(std::string key, int val) {
+	intPrefs[key] = val;
+}
+
+void set_pref(std::string key, double val) {
+	doublePrefs[key] = val;
+}
+
 std::vector<int> get_iarray_pref(std::string key) {
-	return std::vector<int>();  // Return empty array
+	auto it = iarrayPrefs.find(key);
+	return it != iarrayPrefs.end() ? it->second : std::vector<int>();
 }
 
 void append_iarray_pref(std::string key, int value) {
-	// Stub - would append to integer array preference
+	iarrayPrefs[key].push_back(value);
+	printf("[PREFS-STUB] append_iarray_pref('%s', %d) - new size: %zu\n",
+		key.c_str(), value, iarrayPrefs[key].size());
+}
+
+void clear_pref(std::string key) {
+	boolPrefs.erase(key);
+	intPrefs.erase(key);
+	doublePrefs.erase(key);
+	iarrayPrefs.erase(key);
+}
+
+bool sync_prefs() {
+	// WASM: No file persistence, prefs stay in memory
+	return true;
 }
 
 void set_clipboard(std::string text) {
@@ -530,7 +569,7 @@ enum class ePicType;
 void adjust_window_for_menubar(int mode, unsigned int width, unsigned int height) {}
 void showMenuBar() {}
 unsigned int getMenubarHeight() { return 0; }
-bool get_bool_pref(std::string key, bool defaultVal) { return defaultVal; }
+// REMOVED get_bool_pref stub - use real implementation from prefs.cpp
 
 // Drawable manager
 struct cDrawableManager {
@@ -671,12 +710,8 @@ void nav_put_rsrc(std::initializer_list<std::string> exts, fs::path def) {}
 std::string next_action_type() { return ""; }
 void edit_stuff_done() {}
 
-// Preferences
-void set_pref(std::string key, bool val) {}
-void set_pref(std::string key, int val) {}
-void set_pref(std::string key, double val) {}
-void clear_pref(std::string key) {}
-bool sync_prefs() { return true; }
+// REMOVED PREFERENCE STUBS - use real implementations from prefs.cpp
+// (These stubs were preventing preferences from persisting!)
 
 // Window management
 void makeFrontWindow(sf::Window& win) {}

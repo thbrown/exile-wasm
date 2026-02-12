@@ -79,6 +79,7 @@ SOURCES=(
     "$SOURCE_DIR/gfx/render_text.cpp"
     "$SOURCE_DIR/pattern.cpp"
     "$SOURCE_DIR/tools/framerate_limiter.cpp"
+    # "$SOURCE_DIR/tools/prefs.cpp"  # Too many boost dependencies - using stubs in web_stubs.cpp instead
     "$SOURCE_DIR/dialogxml/dialogs/dialog.cpp"
     "$SOURCE_DIR/dialogxml/dialogs/choicedlog.cpp"
     "$SOURCE_DIR/dialogxml/dialogs/pictchoice.cpp"

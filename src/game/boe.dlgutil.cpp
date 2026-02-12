@@ -179,7 +179,7 @@ eGameMode store_pre_talk_mode;
 short store_personality,store_personality_graphic,shop_identify_cost,shop_recharge_amount,shop_recharge_limit;
 std::string save_talk_str1, save_talk_str2;
 bool talk_end_forced;
-rectangle talk_area_rect = {7,19,422,298}, word_place_rect = {44,7,372,257},talk_help_rect = {7,268,23,286};
+rectangle talk_area_rect = {7,0,422,279}, word_place_rect = {44,7,372,257},talk_help_rect = {7,268,23,286};
 std::string title_string;
 mon_num_t store_monst_type;
 short store_m_num;
