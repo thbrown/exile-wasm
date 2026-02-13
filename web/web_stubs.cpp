@@ -263,14 +263,81 @@ double get_float_pref(std::string key, double defaultVal) {
 	return defaultVal;
 }
 
-// Simple in-memory preferences implementation for WASM
-// (Real prefs.cpp has too many dependencies - boost::any, boost::filesystem, etc.)
+// Simple preferences implementation for WASM with localStorage persistence
 static std::map<std::string, bool> boolPrefs;
 static std::map<std::string, int> intPrefs;
 static std::map<std::string, double> doublePrefs;
 static std::map<std::string, std::vector<int>> iarrayPrefs;
 
+// Load prefs from localStorage on first access
+static bool prefsInitialized = false;
+static void initPrefs() {
+	if (prefsInitialized) return;
+	prefsInitialized = true;
+
+	// Load ReceivedHelp array from localStorage
+	char* jsonStr = (char*)EM_ASM_PTR({
+		try {
+			var stored = localStorage.getItem('BoE_ReceivedHelp');
+			if (!stored) return 0;
+			var len = lengthBytesUTF8(stored) + 1;
+			var ptr = _malloc(len);
+			stringToUTF8(stored, ptr, len);
+			return ptr;
+		} catch(e) {
+			console.error('Failed to load ReceivedHelp from localStorage:', e);
+			return 0;
+		}
+	});
+
+	if (jsonStr) {
+		std::string json(jsonStr);
+		free(jsonStr);
+
+		// Simple JSON array parser
+		if (json.length() > 2 && json[0] == '[' && json.back() == ']') {
+			json = json.substr(1, json.length() - 2); // Remove [ ]
+			std::istringstream iss(json);
+			std::string token;
+			while (std::getline(iss, token, ',')) {
+				try {
+					iarrayPrefs["ReceivedHelp"].push_back(std::stoi(token));
+				} catch(...) {}
+			}
+		}
+
+		if (!iarrayPrefs["ReceivedHelp"].empty()) {
+			printf("[PREFS] Loaded %zu ReceivedHelp items from localStorage\n",
+				iarrayPrefs["ReceivedHelp"].size());
+		}
+	}
+}
+
+// Save ReceivedHelp to localStorage
+static void saveReceivedHelp() {
+	auto& arr = iarrayPrefs["ReceivedHelp"];
+	if (arr.empty()) return;
+
+	// Build JSON array string
+	std::string json = "[";
+	for (size_t i = 0; i < arr.size(); i++) {
+		if (i > 0) json += ",";
+		json += std::to_string(arr[i]);
+	}
+	json += "]";
+
+	EM_ASM_({
+		var jsonStr = UTF8ToString($0);
+		try {
+			localStorage.setItem('BoE_ReceivedHelp', jsonStr);
+		} catch(e) {
+			console.error('Failed to save ReceivedHelp to localStorage:', e);
+		}
+	}, json.c_str());
+}
+
 bool get_bool_pref(std::string key, bool defaultVal) {
+	initPrefs();
 	auto it = boolPrefs.find(key);
 	return it != boolPrefs.end() ? it->second : defaultVal;
 }
@@ -288,14 +355,21 @@ void set_pref(std::string key, double val) {
 }
 
 std::vector<int> get_iarray_pref(std::string key) {
+	initPrefs();
 	auto it = iarrayPrefs.find(key);
 	return it != iarrayPrefs.end() ? it->second : std::vector<int>();
 }
 
 void append_iarray_pref(std::string key, int value) {
+	initPrefs();
 	iarrayPrefs[key].push_back(value);
-	printf("[PREFS-STUB] append_iarray_pref('%s', %d) - new size: %zu\n",
+	printf("[PREFS] append_iarray_pref('%s', %d) - new size: %zu\n",
 		key.c_str(), value, iarrayPrefs[key].size());
+
+	// Auto-save ReceivedHelp to localStorage
+	if (key == "ReceivedHelp") {
+		saveReceivedHelp();
+	}
 }
 
 void clear_pref(std::string key) {
@@ -303,10 +377,14 @@ void clear_pref(std::string key) {
 	intPrefs.erase(key);
 	doublePrefs.erase(key);
 	iarrayPrefs.erase(key);
+
+	if (key == "ReceivedHelp") {
+		EM_ASM({ localStorage.removeItem('BoE_ReceivedHelp'); });
+	}
 }
 
 bool sync_prefs() {
-	// WASM: No file persistence, prefs stay in memory
+	// Save happens automatically in append_iarray_pref
 	return true;
 }
 
