@@ -893,7 +893,12 @@ short short_from_action(ticpp::Element& elem) { return 0; }
 void start_log_file(std::string filename) {}
 
 // Window and cursor
-bool check_window_moved(sf::RenderWindow& win, int& x, int& y, std::string pref) { return false; }
+bool check_window_moved(sf::RenderWindow& win, int& x, int& y, std::string pref) {
+	// WASM: Position tracking for map is handled in drag event handler (boe.main.cpp)
+	// Desktop version would read window position from OS and save to prefs
+	// No action needed here for WASM
+	return false;
+}
 void obscureCursor() {}
 
 // Note: cKey is now defined in keycodes.hpp

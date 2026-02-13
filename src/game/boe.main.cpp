@@ -1595,11 +1595,61 @@ void handle_quit_event() {
 
 int last_window_x = 0;
 int last_window_y = 0;
+int last_map_x = 0;
+int last_map_y = 0;
+
+// Map position tracking for WASM draggable map
+#ifdef __EMSCRIPTEN__
+int map_pos_x = 52;  // Current draw offset position (file scope so handle_one_event can access)
+int map_pos_y = 62;
+static bool map_dragging = false;
+static int drag_start_x = 0;
+static int drag_start_y = 0;
+#endif
 
 void handle_one_event(const sf::Event& event, cFramerateLimiter& fps_limiter) {
 	// What does this do and should it be here?
 	clear_sound_memory();
-	
+
+	#ifdef __EMSCRIPTEN__
+	// On WASM, check if this event belongs to the map window
+	// If the map is visible and the event is within map bounds, route it to the map handler instead
+	if(map_visible && (event.type == sf::Event::MouseButtonPressed ||
+	                   event.type == sf::Event::MouseButtonReleased ||
+	                   event.type == sf::Event::MouseMoved)) {
+
+		// Special case: if we're actively dragging the map, ALWAYS route mouse events to map handler
+		// This ensures smooth dragging even when cursor moves outside map bounds
+		if(map_dragging && (event.type == sf::Event::MouseMoved || event.type == sf::Event::MouseButtonReleased)) {
+			handle_one_minimap_event(event);
+			return;
+		}
+
+		double map_scale = get_ui_scale_map();
+		if (map_scale < 0.1) map_scale = 1.0;
+		int map_width = (int)(map_scale * 296);
+		int map_height = (int)(map_scale * 277);
+
+		// Use current map position (updated during dragging)
+		// map_pos_x and map_pos_y are file-scope variables that track the real-time position
+		int canvas_x, canvas_y;
+		if(event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::MouseButtonReleased) {
+			canvas_x = event.mouseButton.x;
+			canvas_y = event.mouseButton.y;
+		} else {
+			canvas_x = event.mouseMove.x;
+			canvas_y = event.mouseMove.y;
+		}
+
+		// If event is within map bounds, handle it as a map event instead of a game event
+		if(canvas_x >= map_pos_x && canvas_x < map_pos_x + map_width &&
+		   canvas_y >= map_pos_y && canvas_y < map_pos_y + map_height) {
+			handle_one_minimap_event(event);
+			return; // Don't process this event in the main handler
+		}
+	}
+	#endif
+
 	// Check if any of the event listeners want this event.
 	for(auto & listener : event_listeners) {
 		if(listener.second->handle_event(event)) return;
@@ -1660,10 +1710,37 @@ void queue_fake_event(const sf::Event& event) {
 	fake_event_queue.push_back(event);
 }
 
-int last_map_x = 0;
-int last_map_y = 0;
+#ifdef __EMSCRIPTEN__
+void init_map_position() {
+	// Load position from preferences and update draw offset
+	map_pos_x = get_int_pref("MapWindowX", 52);
+	map_pos_y = get_int_pref("MapWindowY", 62);
+	mini_map().setDrawOffset(map_pos_x, map_pos_y);
+}
+#endif
 
 void handle_one_minimap_event(const sf::Event& event) {
+	#ifdef __EMSCRIPTEN__
+	// Helper to convert canvas coordinates to local map coordinates
+	auto get_local_coords = [](const sf::Event& evt, int& local_x, int& local_y) -> bool {
+		int canvas_x, canvas_y;
+		if(evt.type == sf::Event::MouseButtonPressed || evt.type == sf::Event::MouseButtonReleased) {
+			canvas_x = evt.mouseButton.x;
+			canvas_y = evt.mouseButton.y;
+		} else if(evt.type == sf::Event::MouseMoved) {
+			canvas_x = evt.mouseMove.x;
+			canvas_y = evt.mouseMove.y;
+		} else {
+			return true; // Non-mouse events always handled
+		}
+
+		// Convert to local coordinates (relative to map position)
+		local_x = canvas_x - map_pos_x;
+		local_y = canvas_y - map_pos_y;
+		return true;
+	};
+	#endif
+
 	if(event.type == sf::Event::Closed) {
 		close_map(true);
 	}else if(event.type == sf::Event::GainedFocus){
@@ -1673,7 +1750,66 @@ void handle_one_minimap_event(const sf::Event& event) {
 	}else if(event.type == sf::Event::LostFocus){
 		map_window_lost_focus = true;
 	}else if(event.type == sf::Event::MouseMoved){
+		#ifdef __EMSCRIPTEN__
+		int local_x, local_y;
+		get_local_coords(event, local_x, local_y);
+
+		if(map_dragging) {
+			// Calculate delta from last mouse position
+			int dx = event.mouseMove.x - drag_start_x;
+			int dy = event.mouseMove.y - drag_start_y;
+
+			// Update map position
+			map_pos_x += dx;
+			map_pos_y += dy;
+
+			// Get actual canvas size and map dimensions
+			int canvas_width = EM_ASM_INT({ return Module.canvas.width; });
+			int canvas_height = EM_ASM_INT({ return Module.canvas.height; });
+			double map_scale = get_ui_scale_map();
+			if (map_scale < 0.1) map_scale = 1.0;
+			int map_width = (int)(map_scale * 296);
+			int map_height = (int)(map_scale * 277);
+
+			// Allow map to go partially off-screen but keep at least 50px visible
+			const int MIN_VISIBLE = 50;
+			if(map_pos_x < -map_width + MIN_VISIBLE) map_pos_x = -map_width + MIN_VISIBLE;
+			if(map_pos_y < 0) map_pos_y = 0; // Keep title bar on-screen
+			if(map_pos_x > canvas_width - MIN_VISIBLE) map_pos_x = canvas_width - MIN_VISIBLE;
+			if(map_pos_y > canvas_height - MIN_VISIBLE) map_pos_y = canvas_height - MIN_VISIBLE;
+
+			// Update drag start for next delta calculation
+			drag_start_x = event.mouseMove.x;
+			drag_start_y = event.mouseMove.y;
+
+			// Apply new draw offset
+			mini_map().setDrawOffset(map_pos_x, map_pos_y);
+		}
+		#else
 		check_window_moved(mini_map(), last_map_x, last_map_y, "MapWindow");
+		#endif
+	}else if(event.type == sf::Event::MouseButtonPressed){
+		#ifdef __EMSCRIPTEN__
+		int local_x, local_y;
+		get_local_coords(event, local_x, local_y);
+
+		if(event.mouseButton.button == sf::Mouse::Left) {
+			// Allow dragging from anywhere on the map window
+			map_dragging = true;
+			drag_start_x = event.mouseButton.x;  // Use canvas coordinates for drag
+			drag_start_y = event.mouseButton.y;
+		}
+		#endif
+	}else if(event.type == sf::Event::MouseButtonReleased){
+		#ifdef __EMSCRIPTEN__
+		if(map_dragging) {
+			map_dragging = false;
+			// Save final position to preferences
+			set_pref("MapWindowX", map_pos_x);
+			set_pref("MapWindowY", map_pos_y);
+			sync_prefs();
+		}
+		#endif
 	}else if(event.type == sf::Event::KeyPressed){
 		switch(event.key.code){
 			case sf::Keyboard::Escape:

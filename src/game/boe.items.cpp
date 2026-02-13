@@ -691,10 +691,19 @@ void init_mini_map() {
 	if (map_scale < 0.1) map_scale = 1.0;
 	if (mini_map().isOpen()) mini_map().close();
 	mini_map().create(sf::VideoMode(map_scale*296,map_scale*277), "Map", sf::Style::Titlebar | sf::Style::Close);
-	// TODO why is 52,62 the default position, anyway?
+
+	// Load saved position from preferences (or use defaults)
 	int map_x = get_int_pref("MapWindowX", 52);
 	int map_y = get_int_pref("MapWindowY", 62);
+
+	#ifdef __EMSCRIPTEN__
+	// WASM: Use draw offset system for positioning
+	mini_map().setDrawOffset(map_x, map_y);
+	#else
+	// Desktop: Use native window positioning
 	mini_map().setPosition(sf::Vector2i(map_x,map_y));
+	#endif
+
 	sf::View view;
 	view.reset(sf::FloatRect(0, 0, map_scale*296,map_scale*277));
 	view.setViewport(sf::FloatRect(0, 0, map_scale, map_scale));

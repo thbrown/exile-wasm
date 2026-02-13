@@ -32,3 +32,6 @@ void handle_one_event(const sf::Event&, cFramerateLimiter& fps_limiter);
 void queue_fake_event(const sf::Event&);
 void handle_one_minimap_event(const sf::Event &);
 
+#ifdef __EMSCRIPTEN__
+void init_map_position();
+#endif

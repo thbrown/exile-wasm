@@ -40,6 +40,7 @@
 #include "boe.newgraph.hpp"
 #include "boe.fileio.hpp"
 #include "boe.items.hpp"
+#include "boe.main.hpp"
 #include "boe.monster.hpp"
 #include "boe.town.hpp"
 #include "boe.combat.hpp"
@@ -57,6 +58,7 @@
 #include "gfx/tiling.hpp"
 #include "dialogxml/dialogs/strdlog.hpp"
 #include "tools/winutil.hpp"
+#include "tools/prefs.hpp"
 #include "fileio/resmgr/res_image.hpp"
 #include "tools/cursors.hpp"
 #include "replay.hpp"
@@ -1615,12 +1617,18 @@ void display_map() {
 	
 	rectangle the_rect;
 	rectangle	dlogpicrect = {6,6,42,42};
-	
+
 	mini_map().setVisible(true);
 	map_visible = true;
+
+	#ifdef __EMSCRIPTEN__
+	// Initialize map position from preferences
+	init_map_position();
+	#endif
+
 	draw_map(true);
 	makeFrontWindow(mainPtr(), mini_map());
-	
+
 	set_cursor(sword_curs);
 }
 
