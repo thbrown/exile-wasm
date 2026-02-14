@@ -14,6 +14,8 @@
 	#include <boost/filesystem/operations.hpp>
 #else
 	#include <filesystem>
+	#include <emscripten.h>
+	#include <emscripten/html5.h>
 
 	// Compatibility wrapper for last_write_time
 	namespace compat_time {
@@ -44,7 +46,7 @@ extern cCustomGraphics spec_scen_g;
 
 // Load saved games
 static bool load_party_v1(fs::path file_to_load, cUniverse& univ, bool town_restore, bool in_scen, bool maps_there, bool must_port, bool preview);
-static bool load_party_v2(fs::path file_to_load, cUniverse& univ, cCustomGraphics& graphics, bool preview);
+static bool load_party_v2(const fs::path& file_to_load, cUniverse& univ, cCustomGraphics& graphics, bool preview);
 
 extern fs::path nav_get_party();
 extern fs::path nav_put_party(fs::path def);
@@ -117,6 +119,13 @@ bool load_party(fs::path file_to_load, cUniverse& univ, cCustomGraphics& graphic
 		return false;
 	}
 	
+	// Check for WASM uncompressed saves first
+#ifdef __EMSCRIPTEN__
+	if(file_to_load.extension() == ".exg") {
+		std::cout << "[WASM] Detected .exg file, assuming new_oboe format (uncompressed)" << std::endl;
+		format = new_oboe;
+	}else
+#endif
 	if(mac_is_intel() && flags.a == 0x8B1F){ // Gzip header (new format)
 		format = new_oboe;
 	}else if(!mac_is_intel() && flags.a == 0x1F8B){ // Gzip header (new format)
@@ -334,14 +343,35 @@ bool load_party_v1(fs::path file_to_load, cUniverse& real_univ, bool town_restor
 	return true;
 }
 
-bool load_party_v2(fs::path file_to_load, cUniverse& real_univ, cCustomGraphics& graphics, bool preview){
+bool load_party_v2(const fs::path& file_to_load, cUniverse& real_univ, cCustomGraphics& graphics, bool preview){
+#ifdef __EMSCRIPTEN__
+	// WASM: Use uncompressed input (matching uncompressed save)
+	std::ifstream zin(file_to_load.string().c_str(), std::ios::binary);
+#else
+	// Desktop: Use compressed input
 	igzstream zin(file_to_load.string().c_str());
+#endif
+
+#ifdef __EMSCRIPTEN__
+	// WASM: Heap-allocate tarball to avoid stack overflow
+	auto partyIn_ptr = std::make_unique<tarball>();
+	tarball& partyIn = *partyIn_ptr;
+#else
 	tarball partyIn;
+#endif
 	partyIn.readFrom(zin);
 	zin.close();
-	
+
+#ifdef __EMSCRIPTEN__
+	// WASM: Heap-allocate to avoid stack overflow in ASYNCIFY
+	auto univ_ptr = std::make_unique<cUniverse>();
+	cUniverse& univ = *univ_ptr;
+	auto file_ptr = std::make_unique<cTagFile>();
+	cTagFile& file = *file_ptr;
+#else
 	cUniverse univ;
 	cTagFile file;
+#endif
 	
 	{ // Load main party data first
 		std::istream& fin = partyIn.getFile("save/party.txt");
@@ -595,10 +625,45 @@ static bool save_party_const(const cUniverse& univ, fs::path dest_file = "") {
 		fin.close();
 	}
 	
-	// Write out the compressed data
+	// Write out the data
+#ifdef __EMSCRIPTEN__
+	std::cout << "[WASM] Writing save file to: " << dest_file.string() << std::endl;
+
+	// Check directory exists
+	fs::path parent = dest_file.parent_path();
+	if(!fs::exists(parent)) {
+		std::cout << "[WASM] Creating directory: " << parent.string() << std::endl;
+		fs::create_directories(parent);
+	}
+
+	// WASM: Use uncompressed output (gzstream doesn't work with MEMFS)
+	std::ofstream zout(dest_file.string().c_str(), std::ios::binary);
+	if(!zout) {
+		std::cerr << "[WASM] ERROR: Failed to open file for writing" << std::endl;
+		return false;
+	}
+	std::cout << "[WASM] File opened successfully (uncompressed)" << std::endl;
+
+	partyOut.writeTo(zout);
+	std::cout << "[WASM] Data written to stream" << std::endl;
+
+	zout.close();
+	std::cout << "[WASM] Stream closed" << std::endl;
+
+	// Verify file was written
+	if(fs::exists(dest_file)) {
+		std::cout << "[WASM] ✓ Save file exists, size: " << fs::file_size(dest_file) << " bytes" << std::endl;
+	} else {
+		std::cerr << "[WASM] ERROR: File does not exist after write!" << std::endl;
+		return false;
+	}
+#else
+	// Desktop: Use compressed output
 	ogzstream zout(dest_file.string().c_str());
+	if(!zout) return false;
 	partyOut.writeTo(zout);
 	zout.close();
+#endif
 	return true;
 }
 

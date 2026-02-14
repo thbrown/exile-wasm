@@ -570,10 +570,6 @@ bool check_autosave_trigger(std::string reason) {
 }
 
 void try_auto_save(std::string reason) {
-#ifdef __EMSCRIPTEN__
-	// Autosave disabled for WASM builds (filesystem operations not yet supported)
-	return;
-#endif
 	if(!get_bool_pref("Autosave", true)) return;
 	if(!check_autosave_trigger(reason)) return;
 	if(univ.file.empty()){
@@ -582,6 +578,36 @@ void try_auto_save(std::string reason) {
 		return;
 	}
 
+#ifdef __EMSCRIPTEN__
+	// WASM: Use IndexedDB for autosaves
+	std::string base = univ.file.stem().string();
+	std::string auto_name = base + ".auto";
+
+	// Get max autosaves preference
+	int max_autosaves = get_int_pref("Autosave_Max", MAX_AUTOSAVE_DEFAULT);
+
+	// Call JavaScript autosave function which handles rotation in IndexedDB
+	EM_ASM_({
+		var baseName = UTF8ToString($0);
+		var maxCount = $1;
+		var reason = UTF8ToString($2);
+
+		// This will be implemented in savemanager.js
+		if (Module._saveDB && Module._saveDB.autosave) {
+			Module._saveDB.autosave(baseName, maxCount, reason).then(function(filename) {
+				// Trigger C++ save to MEMFS
+				var path = '/temp/Saves/' + filename;
+				Module.ccall('save_party_to_autosave', null, ['string'], [path]);
+			}).catch(function(err) {
+				console.error('Autosave failed:', err);
+			});
+		}
+	}, auto_name.c_str(), max_autosaves, reason.c_str());
+
+	ASB("Autosave: Game saved");
+	print_buf();
+#else
+	// Desktop: Use filesystem
 	fs::path auto_folder = univ.file;
 	auto_folder.replace_extension(".auto");
 	fs::create_directories(auto_folder);
@@ -604,4 +630,5 @@ void try_auto_save(std::string reason) {
 		ASB("Autosave: Save not completed");
 	}
 	print_buf();
+#endif
 }

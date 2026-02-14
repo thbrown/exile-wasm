@@ -14,6 +14,7 @@
 #include <functional>
 #include <emscripten.h>
 #include "fileio/xml-parser/ticpp.h"
+#include "fileio/fileio.hpp"
 #include "compat/graphics.hpp"
 #include "location.hpp"
 #include "gfx/tiling.hpp"
@@ -24,18 +25,35 @@
 #include "fileio/resmgr/res_cursor.hpp"
 #include "fileio/resmgr/res_dialog.hpp"
 #include "fileio/resmgr/res_strings.hpp"
+#include "universe/universe.hpp"
 #include "dialogxml/widgets/control.hpp"
 #include "tools/event_listener.hpp"
 #include "tools/drawable.hpp"
+#include "game/boe.fileio.hpp"
+#include "game/boe.actions.hpp"
+#include "game/boe.menus.hpp"
+#include "tools/cursors.hpp"
+#include "dialogxml/dialogs/strdlog.hpp"
 
 // ============================================================
 // Event queue for bridging JavaScript browser events to C++
 // ============================================================
 static std::queue<sf::Event> g_web_event_queue;
 
+// Keyboard state tracking for sf::Keyboard::isKeyPressed()
+static bool g_key_states[sf::Keyboard::KeyCount] = {false};
+
 // Current mouse position (for sf::Mouse::getPosition) - in sf namespace
 namespace sf {
 	Vector2i g_current_mouse_pos(0, 0);
+
+	// Implement isKeyPressed for WASM builds
+	bool Keyboard::isKeyPressed(Key key) {
+		if (key >= 0 && key < KeyCount) {
+			return g_key_states[key];
+		}
+		return false;
+	}
 }
 
 // Flag to request redraw when textures finish loading
@@ -97,6 +115,10 @@ void push_key_event(int type, int keyCode, int shift, int ctrl, int alt) {
 			evt.key.control = (ctrl != 0);
 			evt.key.alt = (alt != 0);
 			evt.key.system = false;
+			// Update keyboard state
+			if (keyCode >= 0 && keyCode < sf::Keyboard::KeyCount) {
+				g_key_states[keyCode] = true;
+			}
 			break;
 		case KEY_RELEASED_WEB:
 			evt.type = sf::Event::KeyReleased;
@@ -105,6 +127,10 @@ void push_key_event(int type, int keyCode, int shift, int ctrl, int alt) {
 			evt.key.control = (ctrl != 0);
 			evt.key.alt = (alt != 0);
 			evt.key.system = false;
+			// Update keyboard state
+			if (keyCode >= 0 && keyCode < sf::Keyboard::KeyCount) {
+				g_key_states[keyCode] = false;
+			}
 			break;
 		case KEY_TEXT_WEB:
 			evt.type = sf::Event::TextEntered;
@@ -217,15 +243,196 @@ std::string encode_file(fs::path file) {
 	return "";
 }
 
-// File navigation stubs (TODO: Implement with HTML5 File API)
+// Global variables for async file dialog communication
+static std::string g_dialog_result = "";
+static bool g_dialog_pending = false;
+
+// Called from JavaScript when dialog completes
+extern "C" {
+EMSCRIPTEN_KEEPALIVE
+void set_dialog_result(const char* filename) {
+	if(filename && filename[0] != '\0') {
+		g_dialog_result = filename;
+	} else {
+		g_dialog_result = "";
+	}
+	g_dialog_pending = false;
+}
+}
+
+// File navigation - HTML file dialog with IndexedDB backend
 fs::path nav_get_party() {
-	// Stub - would show file picker and return selected party file path
-	return "";
+	// Reset state
+	g_dialog_result = "";
+	g_dialog_pending = true;
+
+	// Show load dialog (async JavaScript call)
+	EM_ASM({
+		Module._showLoadDialog().then(function(filename) {
+			Module.ccall('set_dialog_result', null, ['string'], [filename || '']);
+		}).catch(function(err) {
+			console.error('Load dialog error:', err);
+			Module.ccall('set_dialog_result', null, ['string'], ['']);
+		});
+	});
+
+	// Wait for dialog to complete using ASYNCIFY-compatible sleep
+	while(g_dialog_pending) {
+		emscripten_sleep(16); // Sleep 16ms (60fps polling)
+	}
+
+	if(g_dialog_result.empty()) {
+		return "";  // User cancelled
+	}
+
+	// Ensure the Saves directory exists in MEMFS
+	fs::path saves_dir = "/temp/Saves";
+	if (!fs::exists(saves_dir)) {
+		fs::create_directories(saves_dir);
+		std::cout << "[WASM] Created directory: " << saves_dir << std::endl;
+	}
+
+	fs::path result = "/temp/Saves/";
+	result += g_dialog_result;
+	return result;
 }
 
 fs::path nav_put_party(fs::path def) {
-	// Stub - would show save dialog for party file
-	return "";
+	std::cout << "[WASM] nav_put_party() called" << std::endl;
+
+	// Reset state
+	g_dialog_result = "";
+	g_dialog_pending = true;
+
+	// Show save dialog with default filename
+	std::string defaultNameStr = def.filename().string();
+
+	std::cout << "[WASM] Showing save dialog with default: " << defaultNameStr << std::endl;
+
+	EM_ASM({
+		console.log('[WASM JS] Calling Module._showSaveDialog');
+		var defName = UTF8ToString($0);
+		Module._showSaveDialog(defName).then(function(filename) {
+			console.log('[WASM JS] Dialog returned:', filename);
+			Module.ccall('set_dialog_result', null, ['string'], [filename || '']);
+		}).catch(function(err) {
+			console.error('Save dialog error:', err);
+			Module.ccall('set_dialog_result', null, ['string'], ['']);
+		});
+	}, defaultNameStr.c_str());
+
+	std::cout << "[WASM] Waiting for dialog to complete..." << std::endl;
+
+	// Wait for dialog to complete using ASYNCIFY-compatible sleep
+	while(g_dialog_pending) {
+		emscripten_sleep(16); // Sleep 16ms (60fps polling)
+	}
+
+	std::cout << "[WASM] Dialog completed, result: " << g_dialog_result << std::endl;
+
+	if(g_dialog_result.empty()) {
+		return "";  // User cancelled
+	}
+
+	// Ensure the Saves directory exists in MEMFS
+	fs::path saves_dir = "/temp/Saves";
+	if (!fs::exists(saves_dir)) {
+		fs::create_directories(saves_dir);
+		std::cout << "[WASM] Created directory: " << saves_dir << std::endl;
+	}
+
+	fs::path result = "/temp/Saves/";
+	result += g_dialog_result;
+	return result;
+}
+
+// MEMFS to IndexedDB sync callback (called after save_party writes file)
+extern "C" {
+EMSCRIPTEN_KEEPALIVE
+void sync_save_to_indexeddb(const char* filename) {
+	EM_ASM_({
+		var fname = UTF8ToString($0);
+		Module._syncSaveToIndexedDB(fname);
+	}, filename);
+}
+
+}
+
+// Forward declarations for C++ globals
+extern cUniverse univ;
+extern cCustomGraphics spec_scen_g;
+extern eGameMode overall_mode;
+extern fs::path store_chose_auto;
+
+extern "C" {
+
+// Autosave function called from JavaScript
+EMSCRIPTEN_KEEPALIVE
+void save_party_to_autosave(const char* path) {
+	fs::path target_path(path);
+
+	// Ensure directory exists
+	fs::path dir = target_path.parent_path();
+	if (!dir.empty() && !fs::exists(dir)) {
+		fs::create_directories(dir);
+	}
+
+	// Perform the save
+	if(save_party_force(univ, target_path)) {
+		// Sync to IndexedDB
+		std::string filename = target_path.filename().string();
+		sync_save_to_indexeddb(filename.c_str());
+	} else {
+		std::cerr << "Autosave failed for path: " << path << std::endl;
+	}
+}
+
+// Load function called from JavaScript
+// This provides a clean, synchronous entry point for loading from a known MEMFS path
+// JavaScript handles all async operations (dialog, IndexedDB) before calling this
+EMSCRIPTEN_KEEPALIVE
+void wasm_load_from_path(const char* path_cstr) {
+	std::cout << "[WASM] wasm_load_from_path: " << path_cstr << std::endl;
+
+	fs::path file_to_load(path_cstr);
+
+	// Ensure file exists
+	if(!fs::exists(file_to_load)) {
+		std::cerr << "[WASM] ERROR: File not found: " << path_cstr << std::endl;
+		showError("Load failed: File not found");
+		return;
+	}
+
+	std::cout << "[WASM] File exists, loading..." << std::endl;
+	set_cursor(watch_curs);
+
+	// Load the party (no file picking, just load from path)
+	if(!load_party(file_to_load, univ, spec_scen_g)) {
+		std::cerr << "[WASM] ERROR: load_party failed" << std::endl;
+		restore_cursor();
+		return;
+	}
+
+	std::cout << "[WASM] load_party succeeded, finishing up..." << std::endl;
+
+	// Finish the load process
+	finish_load_party();
+	if(overall_mode != MODE_STARTUP)
+		post_load();
+
+	// Track the loaded file
+	if(store_chose_auto.empty()){
+		univ.file = file_to_load;
+	} else {
+		// Make sure when you choose an autosave, your next manual save overwrites the main file, not the autosave.
+		univ.file = store_chose_auto;
+	}
+
+	menu_activate();
+	restore_cursor();
+
+	std::cout << "[WASM] Load complete!" << std::endl;
+}
 }
 
 // Endianness conversion stub (not needed on web - same endianness)
@@ -621,9 +828,7 @@ void hideMenuBar() {
 	// Stub - would hide menu bar in web
 }
 
-void init_menubar() {
-	// Stub - would initialize menu bar in web
-}
+// init_menubar now provided by web/boe.menus.wasm.cpp
 
 // Dialog functions
 // once_dialog is now provided by src/dialogxml/dialogs/3choice.cpp
@@ -635,7 +840,7 @@ int get_num_response(short min, short max, std::string prompt, std::vector<std::
 
 // Forward declarations
 class cDialog;
-enum class ePicType;
+// Note: ePicType is already defined in pictypes.hpp as non-scoped enum
 
 // cStrDlog class now provided by src/dialogxml/dialogs/strdlog.cpp
 
@@ -667,9 +872,9 @@ bool replay_warning = false;
 
 // Additional functions and classes
 struct word_rect_t {};
-struct cItem {};
-struct cCreature {};
-struct cScenario {};
+class cItem;
+class cCreature;
+class cScenario;
 
 void record_click_talk_rect(word_rect_t rect, bool val) {}
 void record_action(std::string type, std::map<std::string, std::string> attrs) {}
@@ -677,7 +882,7 @@ void put_item_info(cDialog& dlg, const cItem& item, const cScenario& scen) {}
 void put_monst_info(cDialog& dlg, const cCreature& monst, const cScenario& scen) {}
 void display_pc(short mode, short pc_num, cDialog* parent) {}
 void display_alchemy(bool mode, cDialog* parent) {}
-void menu_activate() {}
+// menu_activate now provided by web/boe.menus.wasm.cpp
 
 // Keyboard modifier implementations (keymods_t declared in keymods.hpp, included above)
 

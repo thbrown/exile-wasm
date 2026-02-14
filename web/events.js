@@ -5,6 +5,46 @@
 (function () {
   "use strict";
 
+  // Handle load game - called when user presses Ctrl+O
+  // This avoids ASYNCIFY stack overflow by handling all async operations in JS
+  async function handleLoadGame() {
+    try {
+      // Check if file dialog is available
+      if (!Module._fileDialog || !Module._saveDB) {
+        console.error('[JS] File dialog or save manager not initialized');
+        alert('Load system not ready. Please try again.');
+        return;
+      }
+
+      console.log('[JS] Showing file dialog for load...');
+
+      // Show file dialog (isSave=false, no defaultName)
+      const filename = await Module._fileDialog.show(false, null);
+
+      if (!filename) {
+        console.log('[JS] Load cancelled by user');
+        return;
+      }
+
+      console.log('[JS] Loading file:', filename);
+
+      // Load from IndexedDB to MEMFS
+      await Module._saveDB.loadFile(filename);
+
+      // Call C++ to load from the known MEMFS path
+      const memfsPath = '/temp/Saves/' + filename;
+      console.log('[JS] Calling C++ to load from:', memfsPath);
+
+      Module.ccall('wasm_load_from_path', null, ['string'], [memfsPath]);
+
+      console.log('[JS] Load complete!');
+
+    } catch (err) {
+      console.error('[JS] Load error:', err);
+      alert('Failed to load game: ' + err.message);
+    }
+  }
+
   // Wait for the Module to be ready
   function initEvents() {
     var canvas = Module.canvas;
@@ -207,10 +247,29 @@
 
     // Keyboard events
     canvas.addEventListener("keydown", function (event) {
+      // Intercept Ctrl+O for load - handle entirely in JavaScript to avoid ASYNCIFY stack overflow
+      if ((event.ctrlKey || event.metaKey) && event.code === 'KeyO') {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log('[JS] Ctrl+O intercepted - handling load in JavaScript');
+        handleLoadGame();
+        return;
+      }
+
       // Prevent default for game keys to avoid browser shortcuts
       if (event.code in keyCodeMap) {
         event.preventDefault();
       }
+
+      // Prevent browser shortcuts for Ctrl+key combinations used by the game
+      if (event.ctrlKey || event.metaKey) {
+        const key = event.code;
+        // Prevent Ctrl+S (Save), Ctrl+O (Open), Ctrl+N (New), Ctrl+W (Wait/Close tab), Ctrl+A (Alchemy/Select all)
+        if (key === 'KeyS' || key === 'KeyO' || key === 'KeyN' || key === 'KeyW' || key === 'KeyA' || key === 'KeyQ') {
+          event.preventDefault();
+        }
+      }
+
       var sfKey = event.code in keyCodeMap ? keyCodeMap[event.code] : -1;
       Module.ccall(
         "push_key_event",

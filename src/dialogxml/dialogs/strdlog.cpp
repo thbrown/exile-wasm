@@ -9,6 +9,9 @@
 #include "strdlog.hpp"
 
 #include <sstream>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "tools/winutil.hpp"
 #include "dialogxml/widgets/pict.hpp"
 #include "fileio/resmgr/res_dialog.hpp"
@@ -106,7 +109,25 @@ void showError(std::string str1, cDialog* parent) {
 }
 
 void showError(std::string str1, std::string str2, cDialog* parent) {
+#ifdef __EMSCRIPTEN__
+	// WASM: Don't show dialogs during load - they use ASYNCIFY which can't be nested
+	// Just log to console and use browser alert
+	std::cerr << "[ERROR] " << str1;
+	if(!str2.empty()) {
+		std::cerr << " " << str2;
+	}
+	std::cerr << std::endl;
+	// Also show a JavaScript alert so user sees the error
+	EM_ASM_({
+		var msg = UTF8ToString($0);
+		if($1) {
+			msg += "\n\n" + UTF8ToString($1);
+		}
+		alert("Error: " + msg);
+	}, str1.c_str(), str2.empty() ? nullptr : str2.c_str());
+#else
 	giveError(25, "Error", str1, str2, parent);
+#endif
 }
 
 void showWarning(std::string str1, cDialog* parent) {
@@ -114,7 +135,23 @@ void showWarning(std::string str1, cDialog* parent) {
 }
 
 void showWarning(std::string str1, std::string str2, cDialog* parent) {
+#ifdef __EMSCRIPTEN__
+	// WASM: Don't show dialogs - they use ASYNCIFY which can't be nested
+	std::cerr << "[WARNING] " << str1;
+	if(!str2.empty()) {
+		std::cerr << " " << str2;
+	}
+	std::cerr << std::endl;
+	EM_ASM_({
+		var msg = UTF8ToString($0);
+		if($1) {
+			msg += "\n\n" + UTF8ToString($1);
+		}
+		console.warn("Warning: " + msg);
+	}, str1.c_str(), str2.empty() ? nullptr : str2.c_str());
+#else
 	giveError(24, "Warning", str1, str2, parent);
+#endif
 }
 
 void showFatalError(std::string str1, cDialog* parent) {
@@ -122,7 +159,23 @@ void showFatalError(std::string str1, cDialog* parent) {
 }
 
 void showFatalError(std::string str1, std::string str2, cDialog* parent) {
+#ifdef __EMSCRIPTEN__
+	// WASM: Don't show dialogs - they use ASYNCIFY which can't be nested
+	std::cerr << "[FATAL ERROR] " << str1;
+	if(!str2.empty()) {
+		std::cerr << " " << str2;
+	}
+	std::cerr << std::endl;
+	EM_ASM_({
+		var msg = UTF8ToString($0);
+		if($1) {
+			msg += "\n\n" + UTF8ToString($1);
+		}
+		alert("Fatal Error: " + msg);
+	}, str1.c_str(), str2.empty() ? nullptr : str2.c_str());
+#else
 	giveError(25, "Error!!!", str1, str2, parent);
+#endif
 }
 
 // Call this anywhere, but don't forget parent!!!

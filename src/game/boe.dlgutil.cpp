@@ -2437,10 +2437,13 @@ fs::path fancy_file_picker(bool saving) {
 }
 
 fs::path run_file_picker(bool saving){
+#ifndef __EMSCRIPTEN__
+	// Desktop: Use fancy TGUI file picker if enabled
 	if(has_feature_flag("file-picker-dialog", "V1") && get_bool_pref("FancyFilePicker", true)){
 		store_chose_auto = "";
 		return fancy_file_picker(saving);
 	}
-
+#endif
+	// WASM or fallback: Use OS file picker (which calls nav_put_party/nav_get_party)
 	return os_file_picker(saving);
 }

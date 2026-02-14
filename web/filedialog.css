@@ -1,0 +1,345 @@
+/**
+ * File Dialog Styling for Blades of Exile WASM
+ * Dark theme matching game aesthetic
+ */
+
+/* Modal overlay */
+.boe-file-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    font-family: 'Courier New', monospace;
+}
+
+.boe-file-dialog-overlay.active {
+    display: flex;
+}
+
+/* Dialog container */
+.boe-file-dialog {
+    background-color: #2a2a2a;
+    border: 2px solid #555;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    width: 90%;
+    max-width: 700px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    color: #e0e0e0;
+}
+
+/* Dialog header */
+.boe-file-dialog-header {
+    background-color: #1a1a1a;
+    padding: 15px 20px;
+    border-bottom: 1px solid #555;
+    border-radius: 6px 6px 0 0;
+}
+
+.boe-file-dialog-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+}
+
+/* Dialog body */
+.boe-file-dialog-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* File list container */
+.boe-file-list-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #1a1a1a;
+    margin-bottom: 15px;
+}
+
+/* File list table */
+.boe-file-list {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.boe-file-list thead {
+    background-color: #333;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.boe-file-list th {
+    padding: 10px;
+    text-align: left;
+    font-weight: bold;
+    color: #fff;
+    border-bottom: 2px solid #555;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.boe-file-list td {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+    font-size: 14px;
+}
+
+.boe-file-list tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.boe-file-list tbody tr:hover {
+    background-color: #3a3a3a;
+}
+
+.boe-file-list tbody tr.selected {
+    background-color: #4a4a4a;
+    border-left: 3px solid #4a9eff;
+}
+
+.boe-file-list tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Empty state */
+.boe-file-list-empty {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-style: italic;
+}
+
+/* File input section */
+.boe-file-input-section {
+    margin-bottom: 20px;
+}
+
+.boe-file-input-section label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.boe-file-input-section input {
+    width: 100%;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.boe-file-input-section input:focus {
+    outline: none;
+    border-color: #4a9eff;
+    box-shadow: 0 0 5px rgba(74, 158, 255, 0.5);
+}
+
+/* Dialog footer */
+.boe-file-dialog-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #555;
+    display: flex;
+    justify-content: space-between;
+    background-color: #1a1a1a;
+    border-radius: 0 0 6px 6px;
+}
+
+.boe-file-dialog-footer-left,
+.boe-file-dialog-footer-right {
+    display: flex;
+    gap: 10px;
+}
+
+/* Buttons */
+.boe-file-dialog button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.boe-file-dialog button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Primary button (Save, Load) */
+.boe-btn-primary {
+    background-color: #4a9eff;
+    color: #fff;
+}
+
+.boe-btn-primary:hover:not(:disabled) {
+    background-color: #3a8eef;
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.4);
+}
+
+.boe-btn-primary:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+/* Secondary button (Cancel) */
+.boe-btn-secondary {
+    background-color: #555;
+    color: #e0e0e0;
+}
+
+.boe-btn-secondary:hover:not(:disabled) {
+    background-color: #666;
+}
+
+/* Danger button (Delete) */
+.boe-btn-danger {
+    background-color: #d9534f;
+    color: #fff;
+}
+
+.boe-btn-danger:hover:not(:disabled) {
+    background-color: #c9302c;
+    box-shadow: 0 2px 8px rgba(217, 83, 79, 0.4);
+}
+
+/* Info button (Download) */
+.boe-btn-info {
+    background-color: #5bc0de;
+    color: #fff;
+}
+
+.boe-btn-info:hover:not(:disabled) {
+    background-color: #46b8da;
+    box-shadow: 0 2px 8px rgba(91, 192, 222, 0.4);
+}
+
+/* Utility classes */
+.boe-text-muted {
+    color: #999;
+    font-size: 12px;
+}
+
+.boe-text-small {
+    font-size: 11px;
+}
+
+/* File size formatting */
+.boe-file-size {
+    color: #aaa;
+    font-size: 12px;
+}
+
+/* Date formatting */
+.boe-file-date {
+    color: #bbb;
+    font-size: 12px;
+}
+
+/* Scrollbar styling */
+.boe-file-list-container::-webkit-scrollbar {
+    width: 10px;
+}
+
+.boe-file-list-container::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+.boe-file-list-container::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 5px;
+}
+
+.boe-file-list-container::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .boe-file-dialog {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .boe-file-dialog-header h2 {
+        font-size: 16px;
+    }
+
+    .boe-file-list th,
+    .boe-file-list td {
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .boe-file-dialog button {
+        padding: 8px 15px;
+        font-size: 12px;
+    }
+
+    .boe-file-dialog-footer {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .boe-file-dialog-footer-left,
+    .boe-file-dialog-footer-right {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .boe-file-dialog-footer button {
+        flex: 1;
+    }
+}
+
+/* Loading indicator */
+.boe-loading {
+    text-align: center;
+    padding: 20px;
+    color: #4a9eff;
+}
+
+.boe-loading::after {
+    content: '...';
+    animation: boe-dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes boe-dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+}
+
+/* Error message */
+.boe-error {
+    background-color: #d9534f;
+    color: #fff;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.boe-error::before {
+    content: '⚠ ';
+    font-weight: bold;
+}

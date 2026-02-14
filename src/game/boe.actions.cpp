@@ -31,6 +31,13 @@
 	#define BOOST_FALLTHROUGH [[fallthrough]]
 #endif
 
+// Forward declaration for WASM save sync
+#ifdef __EMSCRIPTEN__
+extern "C" {
+	void sync_save_to_indexeddb(const char*);
+}
+#endif
+
 #include "boe.global.hpp"
 #include "tools/replay.hpp"
 
@@ -3239,6 +3246,10 @@ void post_load() {
 
 //mode; // 0 - normal  1 - save as
 void do_save(bool save_as) {
+#ifdef __EMSCRIPTEN__
+	std::cout << "[WASM] do_save() called, save_as=" << save_as << std::endl;
+#endif
+
 	if(is_combat()){
 		add_string_to_buf("Save: not in combat.", 2);
 		print_buf();
@@ -3249,11 +3260,27 @@ void do_save(bool save_as) {
 		print_buf();
 		return;
 	}
-	
+
+#ifdef __EMSCRIPTEN__
+	std::cout << "[WASM] Saving outdoor maps..." << std::endl;
+#endif
+
 	if(univ.party.is_in_scenario()) save_outdoor_maps();
-	
+
+#ifdef __EMSCRIPTEN__
+	std::cout << "[WASM] Calling save_party()..." << std::endl;
+#endif
+
 	if(save_party(univ, save_as)){
 		add_string_to_buf("Save: Game saved");
+
+#ifdef __EMSCRIPTEN__
+		// Sync to IndexedDB after successful save
+		if(!univ.file.empty()) {
+			std::string filename = univ.file.filename().string();
+			sync_save_to_indexeddb(filename.c_str());
+		}
+#endif
 	}else{
 		add_string_to_buf("Save: Save not completed");
 	}

@@ -68,7 +68,8 @@ SOURCES=(
     "$SOURCE_DIR/game/boe.fileio.cpp"
     "$SOURCE_DIR/game/boe.main.cpp"
     "$SOURCE_DIR/game/boe.dlgutil.cpp"
-    # "$SOURCE_DIR/game/boe.menu.cpp"  # Requires TGUI - Phase 7
+    "$SOURCE_DIR/game/boe.menu.cpp"
+    "$WEB_DIR/boe.menus.wasm.cpp"  # WASM-specific minimal menu implementation
     "$SOURCE_DIR/game/boe.startup.cpp"
     "$SOURCE_DIR/game/boe.townspec.cpp"
     "$SOURCE_DIR/game/boe.ui.cpp"
@@ -144,7 +145,7 @@ INCLUDES=(
 EMCC_FLAGS=(
     "-sWASM=1"
     "-sALLOW_MEMORY_GROWTH=1"
-    "-sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_push_mouse_event\",\"_push_key_event\"]"
+    "-sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_push_mouse_event\",\"_push_key_event\",\"_set_dialog_result\",\"_sync_save_to_indexeddb\",\"_save_party_to_autosave\",\"_wasm_load_from_path\"]"
     "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\"]"
     "-sNO_EXIT_RUNTIME=1"
     "-sSTRICT=0"
@@ -162,7 +163,8 @@ EMCC_FLAGS=(
     "-std=c++17"
     "-lembind"
     "-sASYNCIFY"
-    "-sASYNCIFY_STACK_SIZE=65536"
+    "-sSTACK_SIZE=16777216"
+    "-sASYNCIFY_STACK_SIZE=2097152"
 )
 
 echo "Step 1: Compiling with universe.cpp..."
@@ -180,17 +182,21 @@ if [ $? -eq 0 ]; then
     echo "✅ Build successful!"
     echo ""
 
-    # Copy events.js to build directory
+    # Copy web assets to build directory
     cp "$WEB_DIR/events.js" "$BUILD_DIR/events.js"
-    echo "Copied events.js to $BUILD_DIR"
+    cp "$WEB_DIR/savemanager.js" "$BUILD_DIR/savemanager.js"
+    cp "$WEB_DIR/filedialog.js" "$BUILD_DIR/filedialog.js"
+    cp "$WEB_DIR/filedialog.css" "$BUILD_DIR/filedialog.css"
+    echo "Copied web assets to $BUILD_DIR"
 
-    # Inject events.js script tag into generated HTML (before boe_minimal.js)
-    sed -i 's|<script async type="text/javascript" src="boe_minimal.js"></script>|<script type="text/javascript" src="events.js"></script>\n    <script async type="text/javascript" src="boe_minimal.js"></script>|' "$BUILD_DIR/boe_minimal.html"
-    echo "Injected events.js into HTML"
+    # Inject save/load dialog CSS and JS, plus events.js into generated HTML
+    sed -i 's|<title>Emscripten-Generated Code</title>|<title>Blades of Exile</title>\n    <link rel="stylesheet" href="filedialog.css">|' "$BUILD_DIR/boe_minimal.html"
+    sed -i 's|<script async type="text/javascript" src="boe_minimal.js"></script>|<script type="text/javascript" src="savemanager.js"></script>\n    <script type="text/javascript" src="filedialog.js"></script>\n    <script type="text/javascript" src="events.js"></script>\n    <script async type="text/javascript" src="boe_minimal.js"></script>|' "$BUILD_DIR/boe_minimal.html"
+    echo "Injected save/load system and events.js into HTML"
 
     echo ""
     echo "Files generated:"
-    ls -lh "$BUILD_DIR/boe_minimal."{wasm,js,html} "$BUILD_DIR/events.js"
+    ls -lh "$BUILD_DIR/boe_minimal."{wasm,js,html} "$BUILD_DIR/events.js" "$BUILD_DIR/savemanager.js" "$BUILD_DIR/filedialog.js" "$BUILD_DIR/filedialog.css"
     echo ""
     echo "To test:"
     echo "  cd $BUILD_DIR && python -m http.server 8081"

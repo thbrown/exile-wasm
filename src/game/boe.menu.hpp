@@ -4,7 +4,11 @@
 // Author: xq, Saturday 2020-01-25
 
 // NOTE: this also includes SFML for us
-#include <TGUI/TGUI.hpp>
+#ifdef __EMSCRIPTEN__
+	#include "compat/tgui.hpp"
+#else
+	#include <TGUI/TGUI.hpp>
+#endif
 #include <vector>
 #include "universe/universe.hpp"
 #include "boe.consts.hpp"

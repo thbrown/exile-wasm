@@ -35,6 +35,9 @@
 				Return = Enter,
 				BackSpace = Backspace
 			};
+
+			// Check if a key is currently pressed (implemented in web_stubs.cpp)
+			static bool isKeyPressed(Key key);
 		};
 
 		// Forward declarations for Mouse

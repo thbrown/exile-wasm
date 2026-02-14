@@ -110,7 +110,15 @@ bool OpenBoEMenu::handle_keypressed_event(const sf::Event& event) const {
 	// to the menu items, they become parts of menu hierarchies
 
 	bool event_was_consumed { false };
-	
+
+#ifdef __EMSCRIPTEN__
+	// Debug logging for WASM
+	if(event.key.code == sf::Keyboard::S) {
+		std::cout << "Key S pressed, control=" << event.key.control
+		          << ", isCtrlPressed=" << this->is_control_key_pressed() << std::endl;
+	}
+#endif
+
 	if(this->is_control_key_pressed()) {
 		if(this->is_shift_key_pressed()) {
 			event_was_consumed = this->handle_ctrl_shift_keypress(event);
@@ -136,9 +144,16 @@ bool OpenBoEMenu::handle_ctrl_keypress(const sf::Event& event) const {
 
 	switch(event.key.code) {
 		case sf::Keyboard::S:
+#ifdef __EMSCRIPTEN__
+			// WASM: Skip menubar check since menubar might not be visible
+			std::cout << "Ctrl+S detected in WASM, calling FILE_SAVE" << std::endl;
+			handle_menu_choice(eMenu::FILE_SAVE);
+			event_was_consumed = true;
+#else
 			if(!menubar->getMenuItemEnabled({ "File", "Save Game Ctrl-S" })) break;
 			handle_menu_choice(eMenu::FILE_SAVE);
 			event_was_consumed = true;
+#endif
 			break;
 		case sf::Keyboard::A:
 			if(!menubar->getMenuItemEnabled({ "Actions", "Do Alchemy Ctrl-A" })) break;
@@ -155,8 +170,15 @@ bool OpenBoEMenu::handle_ctrl_keypress(const sf::Event& event) const {
 			event_was_consumed = true;
 			break;
 		case sf::Keyboard::O:
+#ifdef __EMSCRIPTEN__
+			// WASM: Let JavaScript handle load (see events.js handleLoadGame)
+			// Don't call do_load() here - it would use nav_get_party with sleeps
+			std::cout << "[WASM] Ctrl+O pressed - JavaScript will handle load" << std::endl;
+			event_was_consumed = true;
+#else
 			handle_menu_choice(eMenu::FILE_OPEN);
 			event_was_consumed = true;
+#endif
 			break;
 		case sf::Keyboard::Q:
 			handle_menu_choice(eMenu::QUIT);
