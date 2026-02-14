@@ -164,6 +164,7 @@ EMCC_FLAGS=(
     "-lembind"
     "-sASYNCIFY"
     "-sSTACK_SIZE=16777216"
+    "-sUSE_ZLIB=1"
     "-sASYNCIFY_STACK_SIZE=2097152"
 )
 

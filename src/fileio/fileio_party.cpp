@@ -9,7 +9,12 @@
 #include "fileio.hpp"
 
 #include <fstream>
+#include <sstream>
+#include <vector>
 #include <chrono>
+#ifdef __EMSCRIPTEN__
+	#include <zlib.h>
+#endif
 #ifndef __EMSCRIPTEN__
 	#include <boost/filesystem/operations.hpp>
 #else
@@ -345,10 +350,10 @@ bool load_party_v1(fs::path file_to_load, cUniverse& real_univ, bool town_restor
 
 bool load_party_v2(const fs::path& file_to_load, cUniverse& real_univ, cCustomGraphics& graphics, bool preview){
 #ifdef __EMSCRIPTEN__
-	// WASM: Use uncompressed input (matching uncompressed save)
+	// WASM: Use uncompressed input (all WASM saves are uncompressed)
 	std::ifstream zin(file_to_load.string().c_str(), std::ios::binary);
 #else
-	// Desktop: Use compressed input
+	// Desktop: Use compressed input (gzip)
 	igzstream zin(file_to_load.string().c_str());
 #endif
 
@@ -627,36 +632,12 @@ static bool save_party_const(const cUniverse& univ, fs::path dest_file = "") {
 	
 	// Write out the data
 #ifdef __EMSCRIPTEN__
-	std::cout << "[WASM] Writing save file to: " << dest_file.string() << std::endl;
-
-	// Check directory exists
-	fs::path parent = dest_file.parent_path();
-	if(!fs::exists(parent)) {
-		std::cout << "[WASM] Creating directory: " << parent.string() << std::endl;
-		fs::create_directories(parent);
-	}
-
-	// WASM: Use uncompressed output (gzstream doesn't work with MEMFS)
+	// WASM: Use uncompressed output (works reliably with MEMFS)
+	// Can still load compressed desktop saves with igzstream
 	std::ofstream zout(dest_file.string().c_str(), std::ios::binary);
-	if(!zout) {
-		std::cerr << "[WASM] ERROR: Failed to open file for writing" << std::endl;
-		return false;
-	}
-	std::cout << "[WASM] File opened successfully (uncompressed)" << std::endl;
-
+	if(!zout) return false;
 	partyOut.writeTo(zout);
-	std::cout << "[WASM] Data written to stream" << std::endl;
-
 	zout.close();
-	std::cout << "[WASM] Stream closed" << std::endl;
-
-	// Verify file was written
-	if(fs::exists(dest_file)) {
-		std::cout << "[WASM] ✓ Save file exists, size: " << fs::file_size(dest_file) << " bytes" << std::endl;
-	} else {
-		std::cerr << "[WASM] ERROR: File does not exist after write!" << std::endl;
-		return false;
-	}
 #else
 	// Desktop: Use compressed output
 	ogzstream zout(dest_file.string().c_str());
