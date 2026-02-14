@@ -13,6 +13,11 @@
 #include <optional>
 #include <functional>
 #include <emscripten.h>
+
+// Define BOOST_FALLTHROUGH for C++17 fallthrough attribute
+#ifndef BOOST_FALLTHROUGH
+#define BOOST_FALLTHROUGH [[fallthrough]]
+#endif
 #include "fileio/xml-parser/ticpp.h"
 #include "fileio/fileio.hpp"
 #include "compat/graphics.hpp"
@@ -878,8 +883,6 @@ class cScenario;
 
 void record_click_talk_rect(word_rect_t rect, bool val) {}
 void record_action(std::string type, std::map<std::string, std::string> attrs) {}
-void put_item_info(cDialog& dlg, const cItem& item, const cScenario& scen) {}
-void put_monst_info(cDialog& dlg, const cCreature& monst, const cScenario& scen) {}
 void display_pc(short mode, short pc_num, cDialog* parent) {}
 void display_alchemy(bool mode, cDialog* parent) {}
 // menu_activate now provided by web/boe.menus.wasm.cpp
