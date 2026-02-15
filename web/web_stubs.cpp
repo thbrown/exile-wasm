@@ -632,13 +632,7 @@ void adjust_monst_menu() {
 
 // custom_choice_dialog now provided by src/dialogxml/dialogs/3choice.cpp
 
-void pick_race_abil(class cPlayer* pc, short mode, cDialog* parent) {
-	// Stub - would show race/ability picker
-}
-
-short spend_xp(short pc, short how_much, cDialog* parent) {
-	return 0;  // Stub - would spend XP
-}
+// pick_race_abil and spend_xp now provided by src/pcedit/pc.editors.cpp
 
 // NOTE: cPictChoice now provided by dialogxml/dialogs/pictchoice.cpp
 // NOTE: cLed now provided by dialogxml/widgets/led.cpp
@@ -883,8 +877,7 @@ class cScenario;
 
 void record_click_talk_rect(word_rect_t rect, bool val) {}
 void record_action(std::string type, std::map<std::string, std::string> attrs) {}
-void display_pc(short mode, short pc_num, cDialog* parent) {}
-void display_alchemy(bool mode, cDialog* parent) {}
+// display_pc and display_alchemy now provided by src/pcedit/pc.editors.cpp
 // menu_activate now provided by web/boe.menus.wasm.cpp
 
 // Keyboard modifier implementations (keymods_t declared in keymods.hpp, included above)
@@ -994,7 +987,7 @@ void nav_put_rsrc(std::initializer_list<std::string> exts, fs::path def) {}
 
 // Replay and action functions
 std::string next_action_type() { return ""; }
-void edit_stuff_done() {}
+// edit_stuff_done now provided by src/pcedit/pc.editors.cpp
 
 // REMOVED PREFERENCE STUBS - use real implementations from prefs.cpp
 // (These stubs were preventing preferences from persisting!)

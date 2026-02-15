@@ -14,7 +14,7 @@
 #include "tools/winutil.hpp"
 #include "tools/cursors.hpp"
 #include "gfx/render_shapes.hpp" // for colour constants
-#include <boost/lexical_cast.hpp>
+#include "compat/boost_lexical_cast.hpp"
 
 /*
  * These three are not declared in any included header.

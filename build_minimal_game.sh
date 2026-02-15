@@ -70,6 +70,7 @@ SOURCES=(
     "$SOURCE_DIR/game/boe.dlgutil.cpp"
     "$SOURCE_DIR/game/boe.menu.cpp"
     "$WEB_DIR/boe.menus.wasm.cpp"  # WASM-specific minimal menu implementation
+    "$SOURCE_DIR/pcedit/pc.editors.cpp"
     "$SOURCE_DIR/game/boe.startup.cpp"
     "$SOURCE_DIR/game/boe.townspec.cpp"
     "$SOURCE_DIR/game/boe.ui.cpp"
@@ -140,6 +141,7 @@ INCLUDES=(
     "-I$SOURCE_DIR/fileio/xml-parser"
     "-I$SOURCE_DIR/fileio/gzstream"
     "-I$SOURCE_DIR/dialogxml"
+    "-I$SOURCE_DIR/pcedit"
 )
 
 # Build flags - keep it simple
