@@ -81,6 +81,7 @@ SOURCES=(
     "$SOURCE_DIR/gfx/render_text.cpp"
     "$SOURCE_DIR/pattern.cpp"
     "$SOURCE_DIR/tools/framerate_limiter.cpp"
+    "$SOURCE_DIR/tools/drawable_manager.cpp"  # Manages UI overlay layers
     # "$SOURCE_DIR/tools/prefs.cpp"  # Too many boost dependencies - using stubs in web_stubs.cpp instead
     "$SOURCE_DIR/dialogxml/dialogs/dialog.cpp"
     "$SOURCE_DIR/dialogxml/dialogs/choicedlog.cpp"
@@ -119,6 +120,7 @@ SOURCES=(
     "$SOURCE_DIR/fileio/xml-parser/tinyxmlerror.cpp"
     "$SOURCE_DIR/fileio/xml-parser/tinyxmlparser.cpp"
     # "$SOURCE_DIR/tools/replay.cpp"  # Requires cppcodec - Phase 8 (not critical for initial build)
+    "$SOURCE_DIR/porting.cpp"  # Legacy format conversion - enables loading 1997-2000 scenarios/saves
 )
 
 # Add more game sources incrementally:
@@ -162,6 +164,8 @@ EMCC_FLAGS=(
     "--preload-file"
     "rsrc/dialogs@/rsrc/dialogs"
     "--preload-file"
+    "rsrc/cursors@/rsrc/cursors"
+    "--preload-file"
     "data/sounds@/data/sounds"
     "-g"
     "-std=c++17"
@@ -192,7 +196,11 @@ if [ $? -eq 0 ]; then
     cp "$WEB_DIR/savemanager.js" "$BUILD_DIR/savemanager.js"
     cp "$WEB_DIR/filedialog.js" "$BUILD_DIR/filedialog.js"
     cp "$WEB_DIR/filedialog.css" "$BUILD_DIR/filedialog.css"
-    echo "Copied web assets to $BUILD_DIR"
+
+    # Copy cursor images to build directory for HTTP access
+    mkdir -p "$BUILD_DIR/rsrc/cursors"
+    cp rsrc/cursors/*.gif "$BUILD_DIR/rsrc/cursors/"
+    echo "Copied web assets and cursors to $BUILD_DIR"
 
     # Inject save/load dialog CSS and JS, plus events.js into generated HTML
     sed -i 's|<title>Emscripten-Generated Code</title>|<title>Blades of Exile</title>\n    <link rel="stylesheet" href="filedialog.css">|' "$BUILD_DIR/boe_minimal.html"

@@ -185,49 +185,7 @@ namespace legacy {
 	struct current_town_type {};
 }
 
-void port_scenario(legacy::scenario_data_type* data) {
-	// Stub - would convert legacy scenario format
-}
-
-void port_item_list(legacy::scen_item_data_type* data) {
-	// Stub - would convert legacy item format
-}
-
-void port_out(legacy::outdoor_record_type* data) {
-	// Stub - would convert legacy outdoor format
-}
-
-void port_town(legacy::town_record_type* data) {
-	// Stub - would convert legacy town format
-}
-
-void port_t_d(legacy::big_tr_type* data) {
-	// Stub - would convert legacy big terrain format
-}
-
-void port_ave_t(legacy::ave_tr_type* data) {
-	// Stub - would convert legacy average terrain format
-}
-
-void port_tiny_t(legacy::tiny_tr_type* data) {
-	// Stub - would convert legacy tiny terrain format
-}
-
-void port_talk_nodes(legacy::talking_record_type* data) {
-	// Stub - would convert legacy talking nodes format
-}
-
-void port_party(legacy::party_record_type* data) {
-	// Stub - would convert legacy party format
-}
-
-void port_pc(legacy::pc_record_type* data) {
-	// Stub - would convert legacy PC format
-}
-
-void port_c_town(legacy::current_town_type* data) {
-	// Stub - would convert legacy current town format
-}
+// Legacy format porting functions now provided by src/porting.cpp
 
 // Replay system stubs (TODO: Implement when replay system is added)
 bool replaying = false;
@@ -440,11 +398,7 @@ void wasm_load_from_path(const char* path_cstr) {
 }
 }
 
-// Endianness conversion stub (not needed on web - same endianness)
-void flip_short(short* value) {
-	// Stub - web builds don't need endianness conversion
-	// Both WASM and typical data files are little-endian
-}
+// flip_short and other endian conversion functions now provided by src/porting.cpp
 
 void record_action(std::string action_type, std::string inner_text, bool cdata) {
 	// Stub - would record action to replay log
@@ -459,7 +413,82 @@ std::string info_from_action(ticpp::Element& action) {
 // Note: cursor_type and Cursor are now defined in cursors.hpp (included via res_cursor.hpp)
 
 void set_cursor(cursor_type type) {
-	// Stub - would set cursor appearance
+	// Map BoE cursor types to original game cursor images
+	const char* cursorFile = nullptr;
+	int hotX = 8, hotY = 8;  // Default hotspot (center of typical 16x16 cursor)
+
+	switch(type) {
+		case wand_curs:
+			cursorFile = "wand.gif"; hotX = 4; hotY = 12; break;
+		case eyedropper_curs:
+			cursorFile = "eyedropper.gif"; hotX = 4; hotY = 12; break;
+		case brush_curs:
+			cursorFile = "brush.gif"; hotX = 4; hotY = 12; break;
+		case spray_curs:
+			cursorFile = "spraycan.gif"; hotX = 4; hotY = 12; break;
+		case eraser_curs:
+			cursorFile = "eraser.gif"; hotX = 4; hotY = 12; break;
+		case topleft_curs:
+			cursorFile = "topleft.gif"; hotX = 0; hotY = 0; break;
+		case bottomright_curs:
+			cursorFile = "bottomright.gif"; hotX = 15; hotY = 15; break;
+		case hand_curs:
+			cursorFile = "hand.gif"; hotX = 8; hotY = 4; break;
+		case NW_curs:
+			cursorFile = "NW.gif"; hotX = 8; hotY = 8; break;
+		case N_curs:
+			cursorFile = "N.gif"; hotX = 8; hotY = 8; break;
+		case NE_curs:
+			cursorFile = "NE.gif"; hotX = 8; hotY = 8; break;
+		case W_curs:
+			cursorFile = "W.gif"; hotX = 8; hotY = 8; break;
+		case wait_curs:
+			cursorFile = "wait.gif"; hotX = 8; hotY = 8; break;
+		case E_curs:
+			cursorFile = "E.gif"; hotX = 8; hotY = 8; break;
+		case SW_curs:
+			cursorFile = "SW.gif"; hotX = 8; hotY = 8; break;
+		case S_curs:
+			cursorFile = "S.gif"; hotX = 8; hotY = 8; break;
+		case SE_curs:
+			cursorFile = "SE.gif"; hotX = 8; hotY = 8; break;
+		case sword_curs:
+			cursorFile = "sword.gif"; hotX = 8; hotY = 8; break;
+		case boot_curs:
+			cursorFile = "boot.gif"; hotX = 4; hotY = 12; break;
+		case drop_curs:
+			cursorFile = "drop.gif"; hotX = 8; hotY = 8; break;
+		case target_curs:
+			cursorFile = "target.gif"; hotX = 8; hotY = 8; break;
+		case talk_curs:
+			cursorFile = "talk.gif"; hotX = 8; hotY = 8; break;
+		case key_curs:
+			cursorFile = "key.gif"; hotX = 4; hotY = 4; break;
+		case look_curs:
+			cursorFile = "look.gif"; hotX = 8; hotY = 8; break;
+		case bucket_curs:
+			cursorFile = "bucket.gif"; hotX = 4; hotY = 12; break;
+		case watch_curs:
+			cursorFile = "watch.gif"; hotX = 8; hotY = 8; break;
+		case text_curs:
+			// Use CSS text cursor for text input
+			EM_ASM(Module.canvas.style.cursor = 'text');
+			return;
+		default:
+			// Use default cursor
+			EM_ASM(Module.canvas.style.cursor = 'default');
+			return;
+	}
+
+	if(cursorFile) {
+		EM_ASM_({
+			var filename = UTF8ToString($0);
+			var hotX = $1;
+			var hotY = $2;
+			var cursorUrl = 'rsrc/cursors/' + filename;
+			Module.canvas.style.cursor = 'url(' + cursorUrl + ') ' + hotX + ' ' + hotY + ', auto';
+		}, cursorFile, hotX, hotY);
+	}
 }
 
 // showFatalError now provided by strdlog.cpp
@@ -642,9 +671,9 @@ void beep() {
 	// Stub - would make system beep sound
 }
 
-// Cursor management stub
+// Cursor management
 void restore_cursor() {
-	// Stub - would restore default cursor
+	EM_ASM(Module.canvas.style.cursor = 'default');
 }
 
 // NOTE: cPattern now provided by pattern.cpp
@@ -832,9 +861,25 @@ void hideMenuBar() {
 // Dialog functions
 // once_dialog is now provided by src/dialogxml/dialogs/3choice.cpp
 
-int get_num_response(short min, short max, std::string prompt, std::vector<std::string> opts, std::optional<short> def, short help, std::string, bool*) {
-	// Stub - would show a numeric input dialog
-	return 0;
+int get_num_response(short min, short max, std::string prompt, std::vector<std::string> opts, std::optional<short> def, short help, std::string, bool* cancelled) {
+	// JavaScript fallback for numeric input dialog (Boost-free alternative)
+	int result = EM_ASM_INT({
+		var promptText = UTF8ToString($0);
+		var input = window.prompt(promptText + " (" + $1 + " to " + $2 + "):", $3);
+		if (input === null) {
+			if ($4) HEAP8[$4] = 1; // Set cancelled flag
+			return -1;
+		}
+		var num = parseInt(input);
+		if (isNaN(num) || num < $1 || num > $2) {
+			alert("Invalid number. Please enter a value between " + $1 + " and " + $2 + ".");
+			if ($4) HEAP8[$4] = 1; // Set cancelled flag
+			return -1;
+		}
+		if ($4) HEAP8[$4] = 0; // Clear cancelled flag
+		return num;
+	}, prompt.c_str(), min, max, (def ? *def : min), cancelled);
+	return result;
 }
 
 // Forward declarations
@@ -853,12 +898,7 @@ void showMenuBar() {}
 unsigned int getMenubarHeight() { return 0; }
 // REMOVED get_bool_pref stub - use real implementation from prefs.cpp
 
-// Drawable manager
-struct cDrawableManager {
-	void draw_all();
-};
-
-void cDrawableManager::draw_all() {}
+// cDrawableManager now provided by src/tools/drawable_manager.cpp
 
 // Global variables
 tessel_ref_t bw_pats[128];
@@ -1100,7 +1140,9 @@ bool check_window_moved(sf::RenderWindow& win, int& x, int& y, std::string pref)
 	// No action needed here for WASM
 	return false;
 }
-void obscureCursor() {}
+void obscureCursor() {
+	EM_ASM(Module.canvas.style.cursor = 'none');
+}
 
 // Note: cKey is now defined in keycodes.hpp
 

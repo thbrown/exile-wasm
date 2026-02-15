@@ -734,12 +734,46 @@
 					auto pos = rectShape->getPosition();
 					auto sz = rectShape->getSize();
 					auto fillClr = rectShape->getFillColor();
+					auto outlineClr = rectShape->getOutlineColor();
 					float drawX = pos.x + drawOffsetX_;
 					float drawY = pos.y + drawOffsetY_;
 
+					// Draw fill if not transparent
+					if(fillClr.a > 0) {
+						EM_ASM_({
+							Module.drawRectToCtx('main', $0, $1, $2, $3, $4, $5, $6, $7);
+						}, drawX, drawY, sz.x, sz.y, fillClr.r, fillClr.g, fillClr.b, fillClr.a);
+					}
+					// Draw outline if not transparent
+					if(outlineClr.a > 0) {
+						float thickness = rectShape->getOutlineThickness();
+						EM_ASM_({
+							Module.drawFrameRectToCtx('main', $0, $1, $2, $3, $4, $5, $6, $7, $8);
+						}, drawX, drawY, sz.x, sz.y, outlineClr.r, outlineClr.g, outlineClr.b, outlineClr.a, thickness);
+					}
+					return;
+				}
+
+				const VertexArray* vertexArray = dynamic_cast<const VertexArray*>(&drawable);
+				if(vertexArray) {
+					size_t count = vertexArray->getVertexCount();
+					if(count < 2) return;  // Need at least 2 vertices to draw a line
+
+					// Get first and last vertex for line drawing
+					const Vertex& v0 = (*vertexArray)[0];
+					const Vertex& v1 = (*vertexArray)[count - 1];
+
+					float x0 = v0.position.x + drawOffsetX_;
+					float y0 = v0.position.y + drawOffsetY_;
+					float x1 = v1.position.x + drawOffsetX_;
+					float y1 = v1.position.y + drawOffsetY_;
+
+					// Use the color from the first vertex
+					auto color = v0.color;
+
 					EM_ASM_({
-						Module.drawRectToCtx('main', $0, $1, $2, $3, $4, $5, $6, $7);
-					}, drawX, drawY, sz.x, sz.y, fillClr.r, fillClr.g, fillClr.b, fillClr.a);
+						Module.drawLineToCtx('main', $0, $1, $2, $3, $4, $5, $6, $7, $8);
+					}, x0, y0, x1, y1, color.r, color.g, color.b, color.a, 2);  // thickness = 2
 					return;
 				}
 				#endif

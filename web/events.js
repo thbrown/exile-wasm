@@ -594,6 +594,18 @@
       ctx.strokeRect(x, y, w, h);
     };
 
+    // Draw a line to a context
+    Module.drawLineToCtx = function (ctxId, x0, y0, x1, y1, r, g, b, a, thickness) {
+      var ctx = Module.drawContexts[ctxId];
+      if (!ctx) return;
+      ctx.strokeStyle = "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";
+      ctx.lineWidth = thickness;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    };
+
     console.log("events.js: Drawing module initialized");
   }
 
