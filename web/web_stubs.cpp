@@ -413,6 +413,7 @@ std::string info_from_action(ticpp::Element& action) {
 // Note: cursor_type and Cursor are now defined in cursors.hpp (included via res_cursor.hpp)
 
 void set_cursor(cursor_type type) {
+	Cursor::current = type;
 	// Map BoE cursor types to original game cursor images
 	const char* cursorFile = nullptr;
 	int hotX = 8, hotY = 8;  // Default hotspot (center of typical 16x16 cursor)
@@ -758,39 +759,46 @@ tessel_ref_t prepareForTiling(sf::Texture& srcImg, rectangle srcRect) {
 
 // Rendering functions - tile a pattern texture across a rectangle
 void tileImage(sf::RenderTarget& target, rectangle rect, tessel_ref_t tessel_ref, sf::BlendMode mode) {
-	auto it = g_tessel_map.find(tessel_ref.key);
-	if(it == g_tessel_map.end()) {
-		// No tessel data - draw a solid dark fill as fallback
-		int dstX = rect.left;
-		int dstY = rect.top;
-		int dstW = rect.right - rect.left;
-		int dstH = rect.bottom - rect.top;
-		EM_ASM_({
-			var ctx = Module.canvas.getContext('2d');
-			ctx.fillStyle = 'rgb(66, 66, 66)';
-			ctx.fillRect($0, $1, $2, $3);
-		}, dstX, dstY, dstW, dstH);
-		return;
-	}
-
-	const TesselData& td = it->second;
-
-	// Get draw offset from the RenderWindow if possible
+	// Determine which canvas context to draw to
+	const char* ctxId = "main";
 	int offX = 0, offY = 0;
 	auto* rw = dynamic_cast<sf::RenderWindow*>(&target);
 	if(rw) {
 		offX = rw->getDrawOffsetX();
 		offY = rw->getDrawOffsetY();
 	}
+	auto* rt = dynamic_cast<sf::RenderTexture*>(&target);
+	std::string rtCtxId;
+	if(rt) {
+		rtCtxId = rt->getTexture().getFilename();
+		ctxId = rtCtxId.c_str();
+	}
 
-	// Pre-compute values to pass to JS (EM_ASM_ has limited arg count)
+	auto it = g_tessel_map.find(tessel_ref.key);
+	if(it == g_tessel_map.end()) {
+		// No tessel data - draw a solid dark fill as fallback
+		int dstX = rect.left + offX;
+		int dstY = rect.top + offY;
+		int dstW = rect.right - rect.left;
+		int dstH = rect.bottom - rect.top;
+		EM_ASM_({
+			var id = UTF8ToString($0);
+			var ctx = Module.drawContexts ? Module.drawContexts[id] : null;
+			if(!ctx) ctx = Module.canvas.getContext('2d');
+			ctx.fillStyle = 'rgb(66, 66, 66)';
+			ctx.fillRect($1, $2, $3, $4);
+		}, ctxId, dstX, dstY, dstW, dstH);
+		return;
+	}
+
+	const TesselData& td = it->second;
+
 	int dstX = rect.left + offX;
 	int dstY = rect.top + offY;
 	int dstW = rect.right - rect.left;
 	int dstH = rect.bottom - rect.top;
 
-	// Use EM_JS-style approach: pack all 9 args by storing source info first
-	// EM_ASM_ has trouble with commas in JS object literals, so use array notation
+	// Store source info first (EM_ASM_ has limited arg count)
 	EM_ASM_({
 		if(!Module._tileArgs) Module._tileArgs = [];
 		Module._tileArgs[0] = $0;
@@ -799,14 +807,16 @@ void tileImage(sf::RenderTarget& target, rectangle rect, tessel_ref_t tessel_ref
 		Module._tileArgs[3] = $3;
 	}, td.srcX, td.srcY, td.srcW, td.srcH);
 
-	// Then do the actual tiling with dest info + filename
+	// Then do the actual tiling with dest info + filename + context ID
 	EM_ASM_({
-		var ctx = Module.canvas.getContext('2d');
-		var filename = UTF8ToString($0);
-		var dstX = $1;
-		var dstY = $2;
-		var dstW = $3;
-		var dstH = $4;
+		var ctxId = UTF8ToString($0);
+		var ctx = Module.drawContexts ? Module.drawContexts[ctxId] : null;
+		if(!ctx) ctx = Module.canvas.getContext('2d');
+		var filename = UTF8ToString($1);
+		var dstX = $2;
+		var dstY = $3;
+		var dstW = $4;
+		var dstH = $5;
 		var srcX = Module._tileArgs[0];
 		var srcY = Module._tileArgs[1];
 		var srcW = Module._tileArgs[2];
@@ -848,7 +858,7 @@ void tileImage(sf::RenderTarget& target, rectangle rect, tessel_ref_t tessel_ref
 			ctx.fillStyle = 'rgb(66, 66, 66)';
 			ctx.fillRect(dstX, dstY, dstW, dstH);
 		}
-	}, td.filename.c_str(), dstX, dstY, dstW, dstH);
+	}, ctxId, td.filename.c_str(), dstX, dstY, dstW, dstH);
 }
 
 // Menu functions
@@ -1141,22 +1151,77 @@ bool check_window_moved(sf::RenderWindow& win, int& x, int& y, std::string pref)
 	return false;
 }
 void obscureCursor() {
-	EM_ASM(Module.canvas.style.cursor = 'none');
+	// Set to default cursor instead of hiding (talk cursor -> default)
+	EM_ASM(Module.canvas.style.cursor = 'default');
 }
 
 // Note: cKey is now defined in keycodes.hpp
+// cTextField now provided by src/dialogxml/widgets/field.cpp - STUB because it requires Boost
+// This stub must match the real interface to avoid ASYNCIFY function signature mismatches
 
-class cTextField {
+class cTextField : public cControl, public iEventListener, public iDrawable {
 public:
-	virtual ~cTextField() {}
-	cTextField(iComponent& parent);
-	void handleInput(cKey key, bool shift);
+	explicit cTextField(iComponent& parent);
+	virtual ~cTextField();
+
+	// Virtual methods from cControl
+	bool parseAttribute(ticpp::Attribute& attr, std::string tagName, std::string fname) override;
+	bool parseContent(ticpp::Node& content, int n, std::string tagName, std::string fname, std::string& text) override;
+	std::set<eDlogEvt> getSupportedHandlers() const override;
+	bool handleClick(location where, cFramerateLimiter& fps_limiter) override;
+	void setText(std::string to) override;
+	cControl::storage_t store() const override;
+	void restore(cControl::storage_t to) override;
+	bool isClickable() const override;
+	bool isFocusable() const override;
+	bool isScrollable() const override;
+
+	// Virtual methods from iEventListener
+	bool handle_event(const sf::Event&) override;
+
+	// Virtual methods from iDrawable
+	void draw() override;
+
+	// TextField-specific methods
+	void handleInput(cKey key, bool record = false);
 	void replay_selection(ticpp::Element& elem);
+	bool hasFocus() const;
+
+	long tabOrder = 0;
 };
 
-cTextField::cTextField(iComponent& parent) {}
-void cTextField::handleInput(cKey key, bool shift) {}
+// cTextField implementation
+cTextField::cTextField(iComponent& parent) : cControl(CTRL_TEXT, parent) {}
+cTextField::~cTextField() {}
+bool cTextField::parseAttribute(ticpp::Attribute& attr, std::string tagName, std::string fname) {
+	std::string name = attr.Name();
+	if(name == "type") {
+		// Handle type attribute (int, uint, real, text)
+		// For WASM stub, we just accept it without validation
+		return true;
+	} else if(name == "tab-order") {
+		attr.GetValue(&tabOrder);
+		return true;
+	} else if(name == "max-chars") {
+		// Accept but ignore max-chars attribute
+		return true;
+	}
+	return cControl::parseAttribute(attr, tagName, fname);
+}
+bool cTextField::parseContent(ticpp::Node& content, int n, std::string tagName, std::string fname, std::string& text) { return cControl::parseContent(content, n, tagName, fname, text); }
+std::set<eDlogEvt> cTextField::getSupportedHandlers() const { return {EVT_FOCUS, EVT_DEFOCUS}; }
+bool cTextField::handleClick(location where, cFramerateLimiter& fps_limiter) { return false; }
+void cTextField::setText(std::string to) { cControl::setText(to); }
+cControl::storage_t cTextField::store() const { return cControl::store(); }
+void cTextField::restore(cControl::storage_t to) { cControl::restore(to); }
+bool cTextField::isClickable() const { return true; }
+bool cTextField::isFocusable() const { return true; }
+bool cTextField::isScrollable() const { return false; }
+bool cTextField::handle_event(const sf::Event&) { return false; }
+void cTextField::draw() {}
+void cTextField::handleInput(cKey key, bool record) {}
 void cTextField::replay_selection(ticpp::Element& elem) {}
+bool cTextField::hasFocus() const { return false; }
 
 // Button widget
 // Note: eControlType is now defined in control.hpp

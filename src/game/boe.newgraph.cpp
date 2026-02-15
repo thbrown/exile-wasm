@@ -747,17 +747,25 @@ void draw_shop_graphics(bool item_pressed, bool item_help_pressed, rectangle cli
 	area_rect = rectangle(talk_gworld());
 	talk_gworld().setActive(false);
 
-	// Only re-render on top of the item that is clicked:
-	if(item_pressed || item_help_pressed) {
-		clip_area_rect.offset(-area_rect.left, -area_rect.top);
-		clip_rect(talk_gworld(), clip_area_rect);
-	} else {
+	// In WASM, always do full redraw since clipping doesn't work (glScissor is stubbed)
+	// On desktop, only do full redraw when not clicking items (for efficiency)
+	#ifdef __EMSCRIPTEN__
+	bool do_full_redraw = true;
+	#else
+	bool do_full_redraw = !(item_pressed || item_help_pressed);
+	#endif
+
+	if(do_full_redraw) {
 		clear_scale_aware_text(talk_gworld());
+		fill_rect(talk_gworld(), area_rect, sf::Color::Black); // Fill background
 		frame_rect(talk_gworld(), area_rect, Colours::BLACK);
 		area_rect.inset(1,1);
 		tileImage(talk_gworld(), area_rect,bg[12]);
 
 		frame_rect(talk_gworld(), shop_frame, Colours::BLACK);
+	} else {
+		clip_area_rect.offset(-area_rect.left, -area_rect.top);
+		clip_rect(talk_gworld(), clip_area_rect);
 	}
 	
 	// Place store icon:
@@ -921,6 +929,8 @@ void refresh_shopping() {
 	rectangle to_rect = from_rect;
 	to_rect.offset(talk_gword_offset_x, talk_gword_offset_y);
 	rect_draw_some_item(talk_gworld(),from_rect,mainPtr(),to_rect);
+	mainPtr().setActive();
+	frame_rect(mainPtr(), to_rect, sf::Color::Black);
 }
 
 static void place_talk_face() {
@@ -1066,13 +1076,12 @@ void place_talk_str(std::string str_to_place,std::string str_to_place2,short col
 }
 
 void refresh_talking() {
-	rectangle tempRect(talk_gworld());
-	#ifdef __EMSCRIPTEN__
-	EM_ASM_({
-		console.log('refresh_talking: talk_area_rect top=', $0, 'left=', $1, 'bottom=', $2, 'right=', $3);
-	}, talk_area_rect.top, talk_area_rect.left, talk_area_rect.bottom, talk_area_rect.right);
-	#endif
-	rect_draw_some_item(talk_gworld(),tempRect,mainPtr(),talk_area_rect);
+	rectangle from_rect(talk_gworld());
+	rectangle to_rect = from_rect;
+	to_rect.offset(talk_gword_offset_x, talk_gword_offset_y);
+	rect_draw_some_item(talk_gworld(),from_rect,mainPtr(),to_rect);
+	mainPtr().setActive();
+	frame_rect(mainPtr(), to_rect, sf::Color::Black);
 	place_talk_face();
 }
 
