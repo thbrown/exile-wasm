@@ -184,8 +184,8 @@
 			}
 			Glyph getGlyph(unsigned int codePoint, unsigned int characterSize, bool bold) const {
 				// Return realistic glyph advance for monospace font
-				// Use 0.7 * characterSize to match Canvas 2D rendering
-				float advance = static_cast<float>(characterSize) * 0.7f;
+				// Use 0.6 * characterSize to match Canvas 2D rendering and Text::getLocalBounds
+				float advance = static_cast<float>(characterSize) * 0.6f;
 				return Glyph(advance);
 			}
 			float getKerning(unsigned int first, unsigned int second, unsigned int characterSize) const {
