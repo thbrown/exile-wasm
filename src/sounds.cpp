@@ -83,11 +83,14 @@ void init_snd_tool(){
 
 #ifdef __EMSCRIPTEN__
 	// Preload all sounds for WASM
+	std::cout << "init_snd_tool: Initializing audio for WASM..." << std::endl;
 	sf::initAudio();
+	std::cout << "init_snd_tool: Preloading 100 sound files..." << std::endl;
 	for(int i = 0; i < 100; i++) {
 		std::string fname = "/data/sounds/" + sound_to_fname(i) + ".wav";
 		sf::preloadSound(fname);
 	}
+	std::cout << "init_snd_tool: Audio initialization complete" << std::endl;
 #endif
 }
 

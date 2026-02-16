@@ -786,9 +786,26 @@
 				#endif
 			}
 
-			void setView(const View& view) override {}
-			const View& getView() const override { static View v; return v; }
-			View getDefaultView() const override { return View(); }
+			void setView(const View& view) override {
+				// For WASM, we don't actually use view transforms, so just ignore
+			}
+			const View& getView() const override {
+				// Return a fixed view for splash screen positioning
+				static View fixedView;
+				static bool initialized = false;
+				if (!initialized) {
+					fixedView.setSize(800, 600);
+					fixedView.setCenter(400, 300);
+					initialized = true;
+				}
+				return fixedView;
+			}
+			View getDefaultView() const override {
+				View defaultView;
+				defaultView.setSize(width_, height_);
+				defaultView.setCenter(width_ / 2.0f, height_ / 2.0f);
+				return defaultView;
+			}
 
 			bool setActive(bool active = true) { return true; }
 			void setIcon(unsigned int width, unsigned int height, const uint8_t* pixels) {

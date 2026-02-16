@@ -21,6 +21,52 @@
       border: 0;
       background-color: black;
       display: block;
+      transform-origin: center center;
+      transition: transform 0.2s ease;
+    }
+    /* Zoom controls */
+    #zoom-controls {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 8px;
+      z-index: 50;
+    }
+    #zoom-controls button {
+      width: 36px;
+      height: 36px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #eee;
+      border: 1px solid #555;
+      border-radius: 6px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    #zoom-controls button:hover {
+      background: rgba(30, 30, 30, 0.9);
+      border-color: #777;
+    }
+    #zoom-controls button:active {
+      background: rgba(50, 50, 50, 0.9);
+    }
+    #zoom-level {
+      background: rgba(0, 0, 0, 0.7);
+      color: #ccc;
+      border: 1px solid #555;
+      border-radius: 6px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-family: sans-serif;
+      min-width: 50px;
     }
     #loading {
       position: fixed;
@@ -83,7 +129,50 @@
   </style>
 </head>
 <body>
+  <!-- Splash screen - shown before starting game -->
+  <div id="splash-screen" style="
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #111;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #eee;
+    font-family: sans-serif;
+    text-align: center;
+    padding: 40px;
+    z-index: 1000;
+  ">
+    <h1 style="font-size: 2.5em; margin-bottom: 20px; color: #f9f9f9;">Blades of Exile</h1>
+    <p style="font-size: 1.2em; margin-bottom: 10px; max-width: 600px;">A classic RPG adventure from 1997, now running in your browser!</p>
+    <p style="font-size: 1em; color: #aaa; margin-bottom: 30px; max-width: 600px;">
+      This will download approximately <strong>70 MB</strong> of game data.<br>
+      Once loaded, the game runs entirely in your browser.
+    </p>
+    <button id="start-button" style="
+      padding: 15px 40px;
+      font-size: 1.3em;
+      background: linear-gradient(180deg, #4a6b8a 0%, #2d4a63 100%);
+      color: #fff;
+      border: 2px solid #5a7b9a;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      transition: all 0.2s ease;
+    " onmouseover="this.style.background='linear-gradient(180deg, #5a7b9a 0%, #3d5a73 100%)'"
+       onmouseout="this.style.background='linear-gradient(180deg, #4a6b8a 0%, #2d4a63 100%)'">
+      Start Game
+    </button>
+    <p id="splash-status" style="font-size: 0.9em; color: #888; margin-top: 20px;"></p>
+  </div>
+
   <div id="loading">Loading...</div>
+  <div id="zoom-controls">
+    <button id="zoom-out" title="Zoom Out (-)">−</button>
+    <div id="zoom-level">100%</div>
+    <button id="zoom-in" title="Zoom In (+)">+</button>
+  </div>
   <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 
   <div id="crash-overlay">
@@ -108,6 +197,45 @@
       document.getElementById('crash-overlay').classList.remove('visible');
     });
 
+    // --- Zoom controls ---
+    var zoomLevel = 1.0;
+    var zoomStep = 0.1;
+    var zoomMin = 0.5;
+    var zoomMax = 2.0;
+
+    function updateZoom() {
+      var canvas = document.getElementById('canvas');
+      canvas.style.transform = 'scale(' + zoomLevel + ')';
+      document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+
+      // Save zoom preference
+      try {
+        localStorage.setItem('boe-canvas-zoom', zoomLevel.toString());
+      } catch(e) {}
+    }
+
+    document.getElementById('zoom-in').addEventListener('click', function() {
+      zoomLevel = Math.min(zoomMax, zoomLevel + zoomStep);
+      updateZoom();
+    });
+
+    document.getElementById('zoom-out').addEventListener('click', function() {
+      zoomLevel = Math.max(zoomMin, zoomLevel - zoomStep);
+      updateZoom();
+    });
+
+    // Load saved zoom preference
+    try {
+      var savedZoom = localStorage.getItem('boe-canvas-zoom');
+      if (savedZoom) {
+        zoomLevel = parseFloat(savedZoom);
+        if (isNaN(zoomLevel) || zoomLevel < zoomMin || zoomLevel > zoomMax) {
+          zoomLevel = 1.0;
+        }
+        updateZoom();
+      }
+    } catch(e) {}
+
     // --- Global error handlers ---
     window.onerror = function(message, source, lineno, colno, error) {
       var stack = error && error.stack ? error.stack : (source + ':' + lineno + ':' + colno);
@@ -120,6 +248,39 @@
       showCrashDialog('Blades of Exile has encountered an issue', message, stack || '');
     };
 
+    // --- Splash screen and start button ---
+    var gameStarted = false;
+    var startButton = document.getElementById('start-button');
+    var splashStatus = document.getElementById('splash-status');
+
+    // Start button handler - begins download when clicked
+    startButton.addEventListener('click', function() {
+      if (gameStarted) return;
+      gameStarted = true;
+
+      // Disable button and show loading state
+      startButton.disabled = true;
+      startButton.textContent = 'Loading...';
+      startButton.style.opacity = '0.5';
+      splashStatus.textContent = 'Downloading game data...';
+
+      // Resume AudioContext (required by browsers for audio playback)
+      if (Module.audioContext && Module.audioContext.state === 'suspended') {
+        Module.audioContext.resume().then(function() {
+          console.log('AudioContext resumed on start');
+        });
+      }
+
+      // Load the WASM script (wasmScriptUrl is injected by build script)
+      if (typeof wasmScriptUrl !== 'undefined') {
+        var script = document.createElement('script');
+        script.src = wasmScriptUrl;
+        script.async = true;
+        document.body.appendChild(script);
+        console.log('Started loading WASM module');
+      }
+    });
+
     // --- Module definition ---
     var Module = {
       canvas: document.getElementById('canvas'),
@@ -128,13 +289,26 @@
       setStatus: function(text) {
         if (!text || text === '') {
           document.getElementById('loading').style.display = 'none';
+          // Game is loaded - hide splash and start
+          document.getElementById('splash-screen').style.display = 'none';
         } else {
           document.getElementById('loading').textContent = text;
+          splashStatus.textContent = text;
         }
       },
       monitorRunDependencies: function(left) {
         if (left === 0) {
-          Module.setStatus('');
+          // Wait for audio to finish loading before hiding splash
+          var checkAudio = setInterval(function() {
+            if (Module.audioLoadCount >= Module.audioTotalCount) {
+              clearInterval(checkAudio);
+              Module.setStatus('');
+              console.log('Audio loading complete, game ready');
+            } else {
+              var audioProgress = Module.audioLoadCount + '/' + Module.audioTotalCount;
+              Module.setStatus('Loading audio... (' + audioProgress + ')');
+            }
+          }, 100);
         } else {
           Module.setStatus('Loading... (' + left + ' files remaining)');
         }

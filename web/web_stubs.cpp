@@ -1093,7 +1093,7 @@ void init_tiling() {
 		}
 		bg[i] = prepareForTiling(bg_gworld, bg_rects[i]);
 	}
-	std::cerr << "init_tiling: Initialized " << g_tessel_map.size() << " tile patterns" << std::endl;
+	std::cout << "init_tiling: Initialized " << g_tessel_map.size() << " tile patterns" << std::endl;
 }
 void init_fileio() {}
 void init_spell_menus() {}
@@ -1115,7 +1115,7 @@ static void add_resmgr_paths(const fs::path& basePath) {
 void init_directories(const char* exec_path) {
 	// In the browser, we use Emscripten's virtual filesystem
 	// Resources are preloaded to /data via --preload-file
-	std::cerr << "init_directories called (web build - using virtual filesystem)" << std::endl;
+	std::cout << "init_directories called (web build - using virtual filesystem)" << std::endl;
 
 	// Set progDir to root so progDir/data resolves to /data
 	progDir = "/";
@@ -1137,9 +1137,9 @@ void init_directories(const char* exec_path) {
 	// Register resource manager paths
 	add_resmgr_paths(progDir / "data");
 
-	std::cerr << "Program directory: " << progDir << std::endl;
-	std::cerr << "Resources will be loaded from: " << (progDir / "data") << std::endl;
-	std::cerr << "Resource paths registered for graphics, fonts, sounds, etc." << std::endl;
+	std::cout << "Program directory: " << progDir << std::endl;
+	std::cout << "Resources will be loaded from: " << (progDir / "data") << std::endl;
+	std::cout << "Resource paths registered for graphics, fonts, sounds, etc." << std::endl;
 }
 
 // Additional replay and logging functions

@@ -227,7 +227,12 @@ void adjust_window_mode() {
 	sf::RenderWindow& p = mainPtr();
 	sf::FloatRect mainPort = compute_viewport(p, mode, ui_scale, width, height);
 	mainView.setViewport(mainPort);
-	
+
+	// Set the view on the window (desktop only - WASM has issues with view transforms)
+	#ifndef __EMSCRIPTEN__
+	mainPtr().setView(mainView);
+	#endif
+
 #ifndef __APPLE__ // This overrides Dock icon on OSX, which isn't what we want at all
 	const ImageRsrc& icon = ResMgr::graphics.get("icon", true);
 	mainPtr().setIcon(icon->getSize().x, icon->getSize().y, icon->copyToImage().getPixelsPtr());

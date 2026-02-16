@@ -63,14 +63,30 @@
 			explicit Sound(const SoundBuffer& buffer) : buffer_(&buffer) {}
 
 			void play() {
-				if (!buffer_) return;
+				if (!buffer_) {
+					EM_ASM({ console.warn('Sound::play() called but buffer is null'); });
+					return;
+				}
 
 				const std::string& filename = buffer_->getFilename();
 				EM_ASM_({
 					var filename = UTF8ToString($0);
+					console.log('Attempting to play sound: ' + filename);
 
-					if (!Module.audioContext || !Module.audioBuffers[filename]) {
-						return; // Audio not loaded yet
+					if (!Module.audioContext) {
+						console.error('AudioContext not initialized');
+						return;
+					}
+
+					if (Module.audioContext.state === 'suspended') {
+						console.warn('AudioContext is suspended, attempting to resume...');
+						Module.audioContext.resume();
+					}
+
+					if (!Module.audioBuffers[filename]) {
+						console.error('Audio buffer not loaded: ' + filename);
+						console.log('Available buffers:', Object.keys(Module.audioBuffers));
+						return;
 					}
 
 					try {
@@ -78,6 +94,7 @@
 						source.buffer = Module.audioBuffers[filename];
 						source.connect(Module.audioContext.destination);
 						source.start(0);
+						console.log('Sound played successfully: ' + filename);
 					} catch(e) {
 						console.error('Failed to play sound: ' + filename, e);
 					}
@@ -158,17 +175,22 @@
 		inline void preloadSound(const std::string& filename) {
 			EM_ASM_({
 				var filename = UTF8ToString($0);
-				if (!Module.audioContext) return;
+				if (!Module.audioContext) {
+					console.warn('Cannot preload sound - AudioContext not initialized: ' + filename);
+					return;
+				}
 
 				Module.audioTotalCount++;
 
 				try {
 					var data = FS.readFile(filename);
+					console.log('Decoding audio: ' + filename + ' (' + data.length + ' bytes)');
 					Module.audioContext.decodeAudioData(
 						data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
 						function(buffer) {
 							Module.audioBuffers[filename] = buffer;
 							Module.audioLoadCount++;
+							console.log('Decoded: ' + filename + ' (' + Module.audioLoadCount + '/' + Module.audioTotalCount + ')');
 							if (Module.audioLoadCount === Module.audioTotalCount) {
 								console.log('All audio files loaded (' + Module.audioLoadCount + ')');
 							}
@@ -180,7 +202,7 @@
 					);
 				} catch(e) {
 					Module.audioLoadCount++;
-					console.error('Failed to load: ' + filename, e);
+					console.error('Failed to read from filesystem: ' + filename, e);
 				}
 			}, filename.c_str());
 		}

@@ -11,37 +11,36 @@
     try {
       // Check if file dialog is available
       if (!Module._fileDialog || !Module._saveDB) {
-        console.error('[JS] File dialog or save manager not initialized');
-        alert('Load system not ready. Please try again.');
+        console.error("[JS] File dialog or save manager not initialized");
+        alert("Load system not ready. Please try again.");
         return;
       }
 
-      console.log('[JS] Showing file dialog for load...');
+      console.log("[JS] Showing file dialog for load...");
 
       // Show file dialog (isSave=false, no defaultName)
       const filename = await Module._fileDialog.show(false, null);
 
       if (!filename) {
-        console.log('[JS] Load cancelled by user');
+        console.log("[JS] Load cancelled by user");
         return;
       }
 
-      console.log('[JS] Loading file:', filename);
+      console.log("[JS] Loading file:", filename);
 
       // Load from IndexedDB to MEMFS
       await Module._saveDB.loadFile(filename);
 
       // Call C++ to load from the known MEMFS path
-      const memfsPath = '/temp/Saves/' + filename;
-      console.log('[JS] Calling C++ to load from:', memfsPath);
+      const memfsPath = "/temp/Saves/" + filename;
+      console.log("[JS] Calling C++ to load from:", memfsPath);
 
-      Module.ccall('wasm_load_from_path', null, ['string'], [memfsPath]);
+      Module.ccall("wasm_load_from_path", null, ["string"], [memfsPath]);
 
-      console.log('[JS] Load complete!');
-
+      console.log("[JS] Load complete!");
     } catch (err) {
-      console.error('[JS] Load error:', err);
-      alert('Failed to load game: ' + err.message);
+      console.error("[JS] Load error:", err);
+      alert("Failed to load game: " + err.message);
     }
   }
 
@@ -56,6 +55,17 @@
     // Make canvas focusable
     canvas.setAttribute("tabindex", "0");
     canvas.focus();
+
+    // Resume AudioContext on first user interaction (required by browsers)
+    var audioResumed = false;
+    function resumeAudio() {
+      if (!audioResumed && Module.audioContext && Module.audioContext.state === 'suspended') {
+        Module.audioContext.resume().then(function() {
+          console.log('AudioContext resumed');
+          audioResumed = true;
+        });
+      }
+    }
 
     // Mouse event type constants (must match C++ side)
     var MOUSE_PRESSED = 0;
@@ -206,10 +216,20 @@
     canvas.addEventListener("mousedown", function (event) {
       event.preventDefault();
       canvas.focus();
+      resumeAudio(); // Resume audio on first click
       var coords = getCanvasCoords(event);
       var button = mapMouseButton(event.button);
-      console.log('Mouse down at canvas coords:', coords.x, coords.y, 'button:', button);
-      console.log('About to call push_mouse_event, Module.ccall exists:', typeof Module.ccall);
+      console.log(
+        "Mouse down at canvas coords:",
+        coords.x,
+        coords.y,
+        "button:",
+        button,
+      );
+      console.log(
+        "About to call push_mouse_event, Module.ccall exists:",
+        typeof Module.ccall,
+      );
       try {
         Module.ccall(
           "push_mouse_event",
@@ -217,9 +237,9 @@
           ["number", "number", "number", "number"],
           [MOUSE_PRESSED, coords.x, coords.y, button],
         );
-        console.log('push_mouse_event ccall succeeded');
-      } catch(e) {
-        console.error('push_mouse_event ccall failed:', e);
+        console.log("push_mouse_event ccall succeeded");
+      } catch (e) {
+        console.error("push_mouse_event ccall failed:", e);
       }
     });
 
@@ -247,11 +267,13 @@
 
     // Keyboard events
     canvas.addEventListener("keydown", function (event) {
+      resumeAudio(); // Resume audio on first keypress
+
       // Intercept Ctrl+O for load - handle entirely in JavaScript to avoid ASYNCIFY stack overflow
-      if ((event.ctrlKey || event.metaKey) && event.code === 'KeyO') {
+      if ((event.ctrlKey || event.metaKey) && event.code === "KeyO") {
         event.preventDefault();
         event.stopPropagation();
-        console.log('[JS] Ctrl+O intercepted - handling load in JavaScript');
+        console.log("[JS] Ctrl+O intercepted - handling load in JavaScript");
         handleLoadGame();
         return;
       }
@@ -265,7 +287,14 @@
       if (event.ctrlKey || event.metaKey) {
         const key = event.code;
         // Prevent Ctrl+S (Save), Ctrl+O (Open), Ctrl+N (New), Ctrl+W (Wait/Close tab), Ctrl+A (Alchemy/Select all)
-        if (key === 'KeyS' || key === 'KeyO' || key === 'KeyN' || key === 'KeyW' || key === 'KeyA' || key === 'KeyQ') {
+        if (
+          key === "KeyS" ||
+          key === "KeyO" ||
+          key === "KeyN" ||
+          key === "KeyW" ||
+          key === "KeyA" ||
+          key === "KeyQ"
+        ) {
           event.preventDefault();
         }
       }
@@ -286,7 +315,13 @@
 
       // Generate TextEntered event for printable characters
       // This replaces the deprecated keypress event
-      if (event.key && event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (
+        event.key &&
+        event.key.length === 1 &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey
+      ) {
         var charCode = event.key.charCodeAt(0);
         Module.ccall(
           "push_key_event",
@@ -340,29 +375,87 @@
     Module.imageTotalCount = 0;
 
     // Preload all game graphics
-    Module.preloadImages = function() {
+    Module.preloadImages = function () {
       var graphicsFiles = [
-        "bigscenpics.png", "blank.png", "booms.png", "buttons.png", "bwpats.png",
-        "dlgbtnred.png", "dlogbtnhelp.png", "dlogbtnled.png", "dlogbtnlg.png",
-        "dlogbtnmed.png", "dlogbtnsm.png", "dlogbtntall.png", "dlogpics.png",
-        "dlogscrollled.png", "dlogscrollwh.png", "edbuttons.png", "edsplash.png",
-        "fields.png", "fighthelp.png", "icon.png", "invenbtns.png", "inventory.png",
-        "missiles.png", "monst1.png", "monst10.png", "monst11.png", "monst2.png",
-        "monst3.png", "monst4.png", "monst5.png", "monst6.png", "monst7.png",
-        "monst8.png", "monst9.png", "objects.png", "outhelp.png", "pcedbuttons.png",
-        "pcedtitle.png", "pcs.png", "pixpats.png", "scenpics.png", "spidlogo.png",
-        "startanim.png", "startbut.png", "startsplash.png", "startup.png",
-        "statarea.png", "staticons.png", "talkportraits.png", "ter1.png", "ter10.png",
-        "ter11.png", "ter12.png", "ter13.png", "ter14.png", "ter19.png", "ter2.png",
-        "ter3.png", "ter4.png", "ter5.png", "ter6.png", "ter7.png", "ter8.png",
-        "ter9.png", "teranim.png", "termap.png", "terscreen.png", "textbar.png",
-        "tinyobj.png", "townhelp.png", "transcript.png", "trim.png", "vehicle.png"
+        "bigscenpics.png",
+        "blank.png",
+        "booms.png",
+        "buttons.png",
+        "bwpats.png",
+        "dlgbtnred.png",
+        "dlogbtnhelp.png",
+        "dlogbtnled.png",
+        "dlogbtnlg.png",
+        "dlogbtnmed.png",
+        "dlogbtnsm.png",
+        "dlogbtntall.png",
+        "dlogpics.png",
+        "dlogscrollled.png",
+        "dlogscrollwh.png",
+        "edbuttons.png",
+        "edsplash.png",
+        "fields.png",
+        "fighthelp.png",
+        "icon.png",
+        "invenbtns.png",
+        "inventory.png",
+        "missiles.png",
+        "monst1.png",
+        "monst10.png",
+        "monst11.png",
+        "monst2.png",
+        "monst3.png",
+        "monst4.png",
+        "monst5.png",
+        "monst6.png",
+        "monst7.png",
+        "monst8.png",
+        "monst9.png",
+        "objects.png",
+        "outhelp.png",
+        "pcedbuttons.png",
+        "pcedtitle.png",
+        "pcs.png",
+        "pixpats.png",
+        "scenpics.png",
+        "spidlogo.png",
+        "startanim.png",
+        "startbut.png",
+        "startsplash.png",
+        "startup.png",
+        "statarea.png",
+        "staticons.png",
+        "talkportraits.png",
+        "ter1.png",
+        "ter10.png",
+        "ter11.png",
+        "ter12.png",
+        "ter13.png",
+        "ter14.png",
+        "ter19.png",
+        "ter2.png",
+        "ter3.png",
+        "ter4.png",
+        "ter5.png",
+        "ter6.png",
+        "ter7.png",
+        "ter8.png",
+        "ter9.png",
+        "teranim.png",
+        "termap.png",
+        "terscreen.png",
+        "textbar.png",
+        "tinyobj.png",
+        "townhelp.png",
+        "transcript.png",
+        "trim.png",
+        "vehicle.png",
       ];
 
       Module.imageTotalCount = graphicsFiles.length;
       console.log("Preloading " + Module.imageTotalCount + " images...");
 
-      graphicsFiles.forEach(function(filename) {
+      graphicsFiles.forEach(function (filename) {
         var fullPath = "/data/graphics/" + filename;
         try {
           var data = FS.readFile(fullPath);
@@ -370,11 +463,11 @@
           var url = URL.createObjectURL(blob);
           var img = new Image();
 
-          img.onload = function() {
+          img.onload = function () {
             Module.textureCache[fullPath] = img;
             Module.textureDimensions[fullPath] = {
               width: img.naturalWidth,
-              height: img.naturalHeight
+              height: img.naturalHeight,
             };
             Module.imageLoadCount++;
             if (Module.imageLoadCount === Module.imageTotalCount) {
@@ -382,13 +475,13 @@
             }
           };
 
-          img.onerror = function() {
+          img.onerror = function () {
             Module.imageLoadCount++;
             console.error("Failed to load image: " + fullPath);
           };
 
           img.src = url;
-        } catch(e) {
+        } catch (e) {
           Module.imageLoadCount++;
           console.error("Failed to read image file: " + fullPath, e);
         }
@@ -399,29 +492,34 @@
     Module.preloadImages();
 
     // Load fonts from Emscripten filesystem
-    Module.loadFonts = function() {
+    Module.loadFonts = function () {
       var fonts = {
-        'BoE-Plain': '/data/fonts/plain.ttf',
-        'BoE-Bold': '/data/fonts/bold.ttf',
-        'BoE-Dungeon': '/data/fonts/dungeon.ttf',
-        'BoE-Maidenword': '/data/fonts/maidenword.ttf'
+        "BoE-Plain": "/data/fonts/plain.ttf",
+        "BoE-Bold": "/data/fonts/bold.ttf",
+        "BoE-Dungeon": "/data/fonts/dungeon.ttf",
+        "BoE-Maidenword": "/data/fonts/maidenword.ttf",
       };
 
-      Object.keys(fonts).forEach(function(fontName) {
+      Object.keys(fonts).forEach(function (fontName) {
         try {
           var fontPath = fonts[fontName];
           var fontData = FS.readFile(fontPath);
-          var blob = new Blob([fontData], { type: 'font/truetype' });
+          var blob = new Blob([fontData], { type: "font/truetype" });
           var url = URL.createObjectURL(blob);
 
           // Create @font-face style
-          var style = document.createElement('style');
-          style.textContent = '@font-face { font-family: "' + fontName + '"; src: url(' + url + '); }';
+          var style = document.createElement("style");
+          style.textContent =
+            '@font-face { font-family: "' +
+            fontName +
+            '"; src: url(' +
+            url +
+            "); }";
           document.head.appendChild(style);
 
-          console.log('Loaded font: ' + fontName);
-        } catch(e) {
-          console.error('Failed to load font ' + fontName + ':', e);
+          console.log("Loaded font: " + fontName);
+        } catch (e) {
+          console.error("Failed to load font " + fontName + ":", e);
         }
       });
     };
@@ -431,10 +529,10 @@
 
     // Font name mapping (eFont enum to CSS font name)
     Module.fontMap = {
-      0: 'BoE-Plain',      // FONT_PLAIN
-      1: 'BoE-Bold',       // FONT_BOLD
-      2: 'BoE-Dungeon',    // FONT_DUNGEON
-      3: 'BoE-Maidenword'  // FONT_MAIDWORD
+      0: "BoE-Plain", // FONT_PLAIN
+      1: "BoE-Bold", // FONT_BOLD
+      2: "BoE-Dungeon", // FONT_DUNGEON
+      3: "BoE-Maidenword", // FONT_MAIDWORD
     };
 
     // Register the main canvas context
@@ -449,7 +547,9 @@
         ctx.webkitImageSmoothingEnabled = false;
         ctx.msImageSmoothingEnabled = false;
         Module.drawContexts["main"] = ctx;
-        console.log("Drawing module: main canvas registered (smoothing disabled)");
+        console.log(
+          "Drawing module: main canvas registered (smoothing disabled)",
+        );
       }
     };
 
@@ -554,12 +654,23 @@
     };
 
     // Draw text to a context
-    Module.drawTextToCtx = function (ctxId, text, x, y, size, r, g, b, a, fontId) {
+    Module.drawTextToCtx = function (
+      ctxId,
+      text,
+      x,
+      y,
+      size,
+      r,
+      g,
+      b,
+      a,
+      fontId,
+    ) {
       var ctx = Module.drawContexts[ctxId];
       if (!ctx) return;
 
       // Get font family from font map (defaults to BoE-Plain if not specified)
-      var fontFamily = Module.fontMap[fontId] || 'BoE-Plain';
+      var fontFamily = Module.fontMap[fontId] || "BoE-Plain";
       ctx.font = size + "px " + fontFamily;
       ctx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";
       ctx.textBaseline = "top";
@@ -595,7 +706,18 @@
     };
 
     // Draw a line to a context
-    Module.drawLineToCtx = function (ctxId, x0, y0, x1, y1, r, g, b, a, thickness) {
+    Module.drawLineToCtx = function (
+      ctxId,
+      x0,
+      y0,
+      x1,
+      y1,
+      r,
+      g,
+      b,
+      a,
+      thickness,
+    ) {
       var ctx = Module.drawContexts[ctxId];
       if (!ctx) return;
       ctx.strokeStyle = "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";

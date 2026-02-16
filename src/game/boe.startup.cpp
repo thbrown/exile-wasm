@@ -188,7 +188,22 @@ void plop_fancy_startup(cFramerateLimiter& fps_limiter) {
 	sf::Time delay = time_in_ticks(220);
 	intro_from.offset((whole_window.right - intro_from.right) / 2,(whole_window.bottom - intro_from.bottom) / 2);
 	sf::Texture& pict_to_draw = *ResMgr::graphics.get("startsplash", true);
-	
+
+#ifdef __EMSCRIPTEN__
+	// Wait for audio to finish loading before playing sound
+	// Audio decoding is asynchronous, so we need to wait for it
+	std::cout << "Waiting for audio to finish loading..." << std::endl;
+	while(true) {
+		int loaded = EM_ASM_INT({ return Module.audioLoadCount || 0; });
+		int total = EM_ASM_INT({ return Module.audioTotalCount || 0; });
+		if (loaded >= total && total > 0) {
+			std::cout << "Audio ready (" << loaded << "/" << total << ")" << std::endl;
+			break;
+		}
+		emscripten_sleep(50); // Check every 50ms
+	}
+#endif
+
 	play_sound(-22);
 	sf::Clock timer;
 	

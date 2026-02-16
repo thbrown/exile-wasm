@@ -14,11 +14,6 @@ namespace draw_dedup {
 	static int draws_this_frame = 0;
 
 	inline void newFrame() {
-		static int last_log = 0;
-		if(frame_num - last_log >= 60) { // Log once per second
-			std::cout << "newFrame() called - frame " << frame_num << " drew " << draws_this_frame << " sprites" << std::endl;
-			last_log = frame_num;
-		}
 		drawnThisFrame.clear();
 		draws_this_frame = 0;
 		frame_num++;

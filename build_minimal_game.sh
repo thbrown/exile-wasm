@@ -207,6 +207,11 @@ if [ $? -eq 0 ]; then
 
     echo "Custom shell template used - no HTML injection needed"
 
+    # Modify the generated HTML to prevent auto-loading the WASM
+    # Replace the script tag with a deferred version that only loads on user click
+    sed -i 's|<script async type="text/javascript" src="boe_minimal.js"></script>|<script>var wasmScriptUrl = "boe_minimal.js";</script>|' "$BUILD_DIR/boe_minimal.html"
+    echo "Modified HTML to enable splash screen with on-demand loading"
+
     echo ""
     echo "Files generated:"
     ls -lh "$BUILD_DIR/boe_minimal."{wasm,js,html} "$BUILD_DIR/events.js" "$BUILD_DIR/savemanager.js" "$BUILD_DIR/filedialog.js" "$BUILD_DIR/filedialog.css"
