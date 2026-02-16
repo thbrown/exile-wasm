@@ -97,6 +97,7 @@ SOURCES=(
     "$SOURCE_DIR/dialogxml/widgets/scrollbar.cpp"
     "$SOURCE_DIR/dialogxml/widgets/button.cpp"
     "$SOURCE_DIR/dialogxml/widgets/basicbtns.cpp"
+    "$SOURCE_DIR/dialogxml/widgets/field.cpp"
     "$SOURCE_DIR/dialogxml/keycodes.cpp"
     "$SOURCE_DIR/sounds.cpp"
     "$SOURCE_DIR/fileio/estreams.cpp"  # Now has ptr_set compatibility layer

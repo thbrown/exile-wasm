@@ -635,6 +635,11 @@ void set_clipboard(std::string text) {
 	std::cout << "Copy to clipboard: " << text << std::endl;
 }
 
+std::string get_clipboard() {
+	// Stub - would get text from clipboard
+	return "";
+}
+
 // Window management stubs
 void setWindowFloating(sf::Window& win, bool floating) {
 	// Stub - would set window floating state
@@ -1156,72 +1161,29 @@ void obscureCursor() {
 }
 
 // Note: cKey is now defined in keycodes.hpp
-// cTextField now provided by src/dialogxml/widgets/field.cpp - STUB because it requires Boost
-// This stub must match the real interface to avoid ASYNCIFY function signature mismatches
+// cTextField now provided by src/dialogxml/widgets/field.cpp (no longer stubbed)
 
-class cTextField : public cControl, public iEventListener, public iDrawable {
-public:
-	explicit cTextField(iComponent& parent);
-	virtual ~cTextField();
+// Undo/Replay stubs for field.cpp (not critical for WASM build)
+#include "tools/undo.hpp"
 
-	// Virtual methods from cControl
-	bool parseAttribute(ticpp::Attribute& attr, std::string tagName, std::string fname) override;
-	bool parseContent(ticpp::Node& content, int n, std::string tagName, std::string fname, std::string& text) override;
-	std::set<eDlogEvt> getSupportedHandlers() const override;
-	bool handleClick(location where, cFramerateLimiter& fps_limiter) override;
-	void setText(std::string to) override;
-	cControl::storage_t store() const override;
-	void restore(cControl::storage_t to) override;
-	bool isClickable() const override;
-	bool isFocusable() const override;
-	bool isScrollable() const override;
+cAction::~cAction() {}
+void cAction::undo() {}
+void cAction::redo() {}
 
-	// Virtual methods from iEventListener
-	bool handle_event(const sf::Event&) override;
+cUndoList::cUndoList() {}
+void cUndoList::undo() {}
+void cUndoList::redo() {}
+void cUndoList::save() {}
+void cUndoList::revert() {}
+void cUndoList::clear() {}
+bool cUndoList::noUndo() const { return true; }
+bool cUndoList::noRedo() const { return true; }
+std::string cUndoList::undoName() const { return ""; }
+std::string cUndoList::redoName() const { return ""; }
+void cUndoList::add(action_ptr what) {}
+size_t cUndoList::maxUndoSize = 50;
 
-	// Virtual methods from iDrawable
-	void draw() override;
-
-	// TextField-specific methods
-	void handleInput(cKey key, bool record = false);
-	void replay_selection(ticpp::Element& elem);
-	bool hasFocus() const;
-
-	long tabOrder = 0;
-};
-
-// cTextField implementation
-cTextField::cTextField(iComponent& parent) : cControl(CTRL_TEXT, parent) {}
-cTextField::~cTextField() {}
-bool cTextField::parseAttribute(ticpp::Attribute& attr, std::string tagName, std::string fname) {
-	std::string name = attr.Name();
-	if(name == "type") {
-		// Handle type attribute (int, uint, real, text)
-		// For WASM stub, we just accept it without validation
-		return true;
-	} else if(name == "tab-order") {
-		attr.GetValue(&tabOrder);
-		return true;
-	} else if(name == "max-chars") {
-		// Accept but ignore max-chars attribute
-		return true;
-	}
-	return cControl::parseAttribute(attr, tagName, fname);
-}
-bool cTextField::parseContent(ticpp::Node& content, int n, std::string tagName, std::string fname, std::string& text) { return cControl::parseContent(content, n, tagName, fname, text); }
-std::set<eDlogEvt> cTextField::getSupportedHandlers() const { return {EVT_FOCUS, EVT_DEFOCUS}; }
-bool cTextField::handleClick(location where, cFramerateLimiter& fps_limiter) { return false; }
-void cTextField::setText(std::string to) { cControl::setText(to); }
-cControl::storage_t cTextField::store() const { return cControl::store(); }
-void cTextField::restore(cControl::storage_t to) { cControl::restore(to); }
-bool cTextField::isClickable() const { return true; }
-bool cTextField::isFocusable() const { return true; }
-bool cTextField::isScrollable() const { return false; }
-bool cTextField::handle_event(const sf::Event&) { return false; }
-void cTextField::draw() {}
-void cTextField::handleInput(cKey key, bool record) {}
-void cTextField::replay_selection(ticpp::Element& elem) {}
-bool cTextField::hasFocus() const { return false; }
+void record_field_input(cKey key) {}
 
 // Button widget
 // Note: eControlType is now defined in control.hpp

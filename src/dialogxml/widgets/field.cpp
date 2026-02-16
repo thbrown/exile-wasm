@@ -10,7 +10,7 @@
 #include <sstream>
 #include <map>
 #include <numeric>
-#include <boost/lexical_cast.hpp>
+#include "compat/boost_lexical_cast.hpp"
 #include "dialogxml/dialogs/dialog.hpp"
 #include "dialogxml/dialogs/strdlog.hpp"
 #include "gfx/render_shapes.hpp"

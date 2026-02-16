@@ -15,6 +15,14 @@
 	#include <stdexcept>
 
 	namespace boost {
+		// Exception type for compatibility
+		class bad_lexical_cast : public std::bad_cast {
+		public:
+			const char* what() const noexcept override {
+				return "bad lexical cast: source type value could not be interpreted as target";
+			}
+		};
+
 		// Simple lexical_cast implementation using std::stringstream
 		template<typename Target, typename Source>
 		Target lexical_cast(const Source& arg) {
@@ -22,7 +30,7 @@
 			Target result;
 
 			if (!(ss << arg) || !(ss >> result) || !(ss >> std::ws).eof()) {
-				throw std::bad_cast();
+				throw bad_lexical_cast();
 			}
 
 			return result;

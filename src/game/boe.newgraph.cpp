@@ -761,8 +761,6 @@ void draw_shop_graphics(bool item_pressed, bool item_help_pressed, rectangle cli
 		frame_rect(talk_gworld(), area_rect, Colours::BLACK);
 		area_rect.inset(1,1);
 		tileImage(talk_gworld(), area_rect,bg[12]);
-
-		frame_rect(talk_gworld(), shop_frame, Colours::BLACK);
 	} else {
 		clip_area_rect.offset(-area_rect.left, -area_rect.top);
 		clip_rect(talk_gworld(), clip_area_rect);
@@ -874,7 +872,7 @@ void draw_shop_graphics(bool item_pressed, bool item_help_pressed, rectangle cli
 		// Now draw item
 		graf_pos_ref(from_gw, from_rect) = calc_item_rect(base_item.graphic_num,to_rect);
 		rect_draw_some_item(*from_gw, from_rect, talk_gworld(), to_rect, sf::BlendAlpha);
-		
+
 		// Draw item key
 		style.pointSize = 10;
 		style.lineHeight = 10;
@@ -899,7 +897,7 @@ void draw_shop_graphics(bool item_pressed, bool item_help_pressed, rectangle cli
 		win_draw_string(talk_gworld(),shopping_rects[i][SHOPRECT_ITEM_EXTRA],cur_info_str,eTextMode::ELLIPSIS,style);
 		rect_draw_some_item(invenbtn_gworld,item_info_from,talk_gworld(),shopping_rects[i][SHOPRECT_ITEM_HELP],item_help_pressed ? sf::BlendNone : sf::BlendAlpha);
 	}
-	
+
 	// Finally, cost info and help strs
 	clear_sstr(title);
 	title << "Prices here are " << cost_strs[active_shop.getCostAdjust()] << '.';
@@ -909,8 +907,31 @@ void draw_shop_graphics(bool item_pressed, bool item_help_pressed, rectangle cli
 	win_draw_string(talk_gworld(),bottom_help_rects[1],"Click on item name (or type 'a'-'h') to buy.",eTextMode::WRAP,style);
 	win_draw_string(talk_gworld(),bottom_help_rects[2],"Hit done button (or Esc.) to quit.",eTextMode::WRAP,style);
 	win_draw_string(talk_gworld(),bottom_help_rects[3],"'I' button brings up description.",eTextMode::WRAP,style);
-	
+
 	undo_clip(talk_gworld());
+
+	// Draw black outline around the scrollable shop item list area (all 8 slots)
+	// Use filled rects instead of frame_rect to ensure WASM compatibility
+	rectangle scroll_pane_outline = shopping_rects[0][SHOPRECT_WHOLE_AREA];
+	scroll_pane_outline.bottom = shopping_rects[7][SHOPRECT_WHOLE_AREA].bottom;
+	// Expand to include the letter keys on the left, with padding
+	scroll_pane_outline.left = shopping_rects[0][SHOPRECT_KEY].left - 4;
+	// Extend right edge to include the help icons
+	scroll_pane_outline.right = shopping_rects[0][SHOPRECT_ITEM_HELP].right + 2;
+	// Add a bit of padding top and bottom
+	scroll_pane_outline.inset(0, -2);
+
+	// Draw 4 edges as filled rectangles (1px thick)
+	rectangle top_edge = {scroll_pane_outline.top, scroll_pane_outline.left, scroll_pane_outline.top + 1, scroll_pane_outline.right};
+	rectangle bottom_edge = {scroll_pane_outline.bottom - 1, scroll_pane_outline.left, scroll_pane_outline.bottom, scroll_pane_outline.right};
+	rectangle left_edge = {scroll_pane_outline.top, scroll_pane_outline.left, scroll_pane_outline.bottom, scroll_pane_outline.left + 1};
+	rectangle right_edge = {scroll_pane_outline.top, scroll_pane_outline.right - 1, scroll_pane_outline.bottom, scroll_pane_outline.right};
+
+	fill_rect(talk_gworld(), top_edge, Colours::BLACK);
+	fill_rect(talk_gworld(), bottom_edge, Colours::BLACK);
+	fill_rect(talk_gworld(), left_edge, Colours::BLACK);
+	fill_rect(talk_gworld(), right_edge, Colours::BLACK);
+
 	talk_gworld().setActive();
 	talk_gworld().display();
 	

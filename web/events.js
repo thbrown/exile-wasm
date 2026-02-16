@@ -283,6 +283,18 @@
           event.altKey ? 1 : 0,
         ],
       );
+
+      // Generate TextEntered event for printable characters
+      // This replaces the deprecated keypress event
+      if (event.key && event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        var charCode = event.key.charCodeAt(0);
+        Module.ccall(
+          "push_key_event",
+          null,
+          ["number", "number", "number", "number", "number"],
+          [KEY_TEXT, charCode, event.shiftKey ? 1 : 0, 0, 0],
+        );
+      }
     });
 
     canvas.addEventListener("keyup", function (event) {
@@ -299,18 +311,6 @@
           event.altKey ? 1 : 0,
         ],
       );
-    });
-
-    // TextEntered events for text fields
-    canvas.addEventListener("keypress", function (event) {
-      if (event.charCode && !event.ctrlKey && !event.altKey && !event.metaKey) {
-        Module.ccall(
-          "push_key_event",
-          null,
-          ["number", "number", "number", "number", "number"],
-          [KEY_TEXT, event.charCode, event.shiftKey ? 1 : 0, 0, 0],
-        );
-      }
     });
 
     // Prevent context menu on right-click

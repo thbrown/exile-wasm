@@ -239,6 +239,13 @@
 				auto pos = getPosition();
 				return FloatRect(pos.x + local.left, pos.y + local.top, local.width, local.height);
 			}
+
+			Vector2f findCharacterPos(size_t index) const {
+				// Calculate character position based on monospace font width (0.6 * characterSize)
+				float charWidth = static_cast<float>(characterSize_) * 0.6f;
+				auto pos = getPosition();
+				return Vector2f(pos.x + index * charWidth, pos.y);
+			}
 		};
 
 		// Vertex for VertexArray

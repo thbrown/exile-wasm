@@ -9,7 +9,6 @@
 	#include <fmt/ranges.h>
 	#include <fmt/compile.h>
 #else
-	#include <emscripten.h>
 	namespace boost {
 		inline void replace_first(std::string& input, const std::string& search, const std::string& replace) {
 			size_t pos = input.find(search);
@@ -1021,19 +1020,7 @@ void handle_talk_node(int which_talk_entry, bool is_redo) {
 			}
 			return;
 		case TALK_ASK: // ask about
-#ifdef __EMSCRIPTEN__
-			{
-				char result[256] = {0};
-				EM_ASM_({
-					var answer = prompt(UTF8ToString($0));
-					if (answer) stringToUTF8(answer.toLowerCase(), $1, $2);
-					else stringToUTF8("", $1, $2);
-				}, "Ask about what?", result, sizeof(result));
-				save_talk_str1 = result;
-			}
-#else
 			save_talk_str1 = get_text_response("Ask about what?", 8);
-#endif
 			strncpy(asked, save_talk_str1.c_str(), 4);
 			if(strnicmp(asked, "name", 4) == 0) goto SPECIAL_NAME;
 			if(strnicmp(asked, "look", 4) == 0) goto SPECIAL_LOOK;
