@@ -402,22 +402,6 @@ int main(int argc, char* argv[]) {
 
 #ifndef __EMSCRIPTEN__
 		handle_scenario_args();
-#else
-		// WASM quick-start: bypass party creation and scenario selection
-		// Jump straight into Valley of Dying Things with a default party
-		try {
-			std::cout << "WASM quick-start: creating default party..." << std::endl;
-			start_new_game(true);
-			std::cout << "WASM quick-start: party created, loading valleydy..." << std::endl;
-			put_party_in_scen("valleydy", true);
-			std::cout << "WASM quick-start: scenario loaded, mode=" << (int)overall_mode << std::endl;
-		} catch(std::exception& e) {
-			std::cerr << "WASM quick-start EXCEPTION: " << e.what() << std::endl;
-		} catch(std::string& s) {
-			std::cerr << "WASM quick-start STRING EXCEPTION: " << s << std::endl;
-		} catch(...) {
-			std::cerr << "WASM quick-start UNKNOWN EXCEPTION" << std::endl;
-		}
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -1282,18 +1266,13 @@ void init_boe(int argc, char* argv[]) {
 	init_startup();
 	flushingInput = true;
 	cFramerateLimiter fps_limiter;
-#ifdef __EMSCRIPTEN__
-	std::cout << "Skipping startup logo and splash for web..." << std::endl;
-	// Skip the startup graphics for web builds - they probably try to display stuff
-	// that won't work yet
-#else
-	// Hidden preference to hide the startup logo - should be kept hidden
+#ifndef __EMSCRIPTEN__
+	// show_logo() skipped for WASM - sound_going() always returns false
 	if(get_bool_pref("ShowStartupLogo", true))
 		show_logo(fps_limiter);
-	// The preference to hide the startup splash is exposed however.
+#endif
 	if(get_bool_pref("ShowStartupSplash", true))
 		plop_fancy_startup(fps_limiter);
-#endif
 
 	cUniverse::print_result = iLiving::print_result = add_string_to_buf;
 	cPlayer::give_help_enabled = true;

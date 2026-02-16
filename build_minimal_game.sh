@@ -175,6 +175,8 @@ EMCC_FLAGS=(
     "-sSTACK_SIZE=16777216"
     "-sUSE_ZLIB=1"
     "-sASYNCIFY_STACK_SIZE=2097152"
+    "--shell-file"
+    "web/shell.html"
 )
 
 echo "Step 1: Compiling with universe.cpp..."
@@ -203,10 +205,7 @@ if [ $? -eq 0 ]; then
     cp rsrc/cursors/*.gif "$BUILD_DIR/rsrc/cursors/"
     echo "Copied web assets and cursors to $BUILD_DIR"
 
-    # Inject save/load dialog CSS and JS, plus events.js into generated HTML
-    sed -i 's|<title>Emscripten-Generated Code</title>|<title>Blades of Exile</title>\n    <link rel="stylesheet" href="filedialog.css">|' "$BUILD_DIR/boe_minimal.html"
-    sed -i 's|<script async type="text/javascript" src="boe_minimal.js"></script>|<script type="text/javascript" src="savemanager.js"></script>\n    <script type="text/javascript" src="filedialog.js"></script>\n    <script type="text/javascript" src="events.js"></script>\n    <script async type="text/javascript" src="boe_minimal.js"></script>|' "$BUILD_DIR/boe_minimal.html"
-    echo "Injected save/load system and events.js into HTML"
+    echo "Custom shell template used - no HTML injection needed"
 
     echo ""
     echo "Files generated:"

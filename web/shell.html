@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blades of Exile</title>
+  <link rel="stylesheet" href="filedialog.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #111;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #canvas {
+      border: 0;
+      background-color: black;
+      display: block;
+    }
+    #loading {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #111;
+      color: #ccc;
+      font-family: sans-serif;
+      font-size: 1.4em;
+      z-index: 100;
+    }
+    /* Crash dialog */
+    #crash-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      font-family: sans-serif;
+      color: #eee;
+    }
+    #crash-overlay.visible { display: flex; }
+    #crash-box {
+      background: #222;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 600px;
+      width: 90%;
+    }
+    #crash-box h2 { margin-bottom: 12px; color: #f66; }
+    #crash-box p  { margin-bottom: 12px; }
+    #crash-box textarea {
+      width: 100%;
+      height: 160px;
+      background: #111;
+      color: #ccc;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      resize: vertical;
+    }
+    #crash-box button {
+      margin-top: 12px;
+      padding: 8px 24px;
+      background: #444;
+      color: #eee;
+      border: 1px solid #666;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    #crash-box button:hover { background: #555; }
+  </style>
+</head>
+<body>
+  <div id="loading">Loading...</div>
+  <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+
+  <div id="crash-overlay">
+    <div id="crash-box">
+      <h2 id="crash-title">Blades of Exile has encountered an issue</h2>
+      <p id="crash-message"></p>
+      <textarea id="crash-trace" readonly></textarea>
+      <button id="crash-dismiss">Dismiss</button>
+    </div>
+  </div>
+
+  <script>
+    // --- Crash dialog ---
+    function showCrashDialog(title, message, stack) {
+      var overlay = document.getElementById('crash-overlay');
+      document.getElementById('crash-title').textContent = title || 'Blades of Exile has encountered an issue';
+      document.getElementById('crash-message').textContent = message || '';
+      document.getElementById('crash-trace').value = (message || '') + '\n\n' + (stack || '');
+      overlay.classList.add('visible');
+    }
+    document.getElementById('crash-dismiss').addEventListener('click', function() {
+      document.getElementById('crash-overlay').classList.remove('visible');
+    });
+
+    // --- Global error handlers ---
+    window.onerror = function(message, source, lineno, colno, error) {
+      var stack = error && error.stack ? error.stack : (source + ':' + lineno + ':' + colno);
+      showCrashDialog('Blades of Exile has encountered an issue', String(message), stack);
+    };
+    window.onunhandledrejection = function(event) {
+      var reason = event.reason;
+      var message = reason instanceof Error ? reason.message : String(reason);
+      var stack = reason instanceof Error ? reason.stack : '';
+      showCrashDialog('Blades of Exile has encountered an issue', message, stack || '');
+    };
+
+    // --- Module definition ---
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      print: function(text) { console.log(text); },
+      printErr: function(text) { console.error(text); },
+      setStatus: function(text) {
+        if (!text || text === '') {
+          document.getElementById('loading').style.display = 'none';
+        } else {
+          document.getElementById('loading').textContent = text;
+        }
+      },
+      monitorRunDependencies: function(left) {
+        if (left === 0) {
+          Module.setStatus('');
+        } else {
+          Module.setStatus('Loading... (' + left + ' files remaining)');
+        }
+      },
+      onAbort: function(what) {
+        showCrashDialog('Blades of Exile has aborted', String(what), new Error().stack || '');
+      }
+    };
+  </script>
+  <script type="text/javascript" src="savemanager.js"></script>
+  <script type="text/javascript" src="filedialog.js"></script>
+  <script type="text/javascript" src="events.js"></script>
+  {{{ SCRIPT }}}
+</body>
+</html>
