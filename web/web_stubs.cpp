@@ -454,7 +454,7 @@ void set_cursor(cursor_type type) {
 		case SE_curs:
 			cursorFile = "SE.gif"; hotX = 8; hotY = 8; break;
 		case sword_curs:
-			cursorFile = "sword.gif"; hotX = 8; hotY = 8; break;
+			cursorFile = "sword.gif"; hotX = 2; hotY = 2; break;
 		case boot_curs:
 			cursorFile = "boot.gif"; hotX = 4; hotY = 12; break;
 		case drop_curs:
@@ -462,7 +462,7 @@ void set_cursor(cursor_type type) {
 		case target_curs:
 			cursorFile = "target.gif"; hotX = 8; hotY = 8; break;
 		case talk_curs:
-			cursorFile = "talk.gif"; hotX = 8; hotY = 8; break;
+			cursorFile = "talk.gif"; hotX = 11; hotY = 12; break;
 		case key_curs:
 			cursorFile = "key.gif"; hotX = 4; hotY = 4; break;
 		case look_curs:
