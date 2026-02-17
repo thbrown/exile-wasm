@@ -113,8 +113,14 @@ fs::path locate_scenario(std::string scen_name, bool allow_unpacked) {
 	std::transform(scen_name.begin(), scen_name.end(), scen_name.begin(), tolower);
 	size_t dot = scen_name.find_first_of('.');
 	std::string base_name = scen_name.substr(0,dot);
-	if(base_name == "valleydy" || base_name == "stealth" || base_name == "zakhazi"/* || base_name == "busywork" */)
-		return progDir/"Blades of Exile Scenarios"/scen_name;
+	if(base_name == "valleydy" || base_name == "stealth" || base_name == "zakhazi"/* || base_name == "busywork" */) {
+		fs::path bundled = progDir/"Blades of Exile Scenarios"/scen_name;
+		if(fs::exists(bundled)) return bundled;
+		// WASM build has unpacked scenario directories without the .boes extension
+		fs::path unpacked = progDir/"Blades of Exile Scenarios"/base_name;
+		if(fs::exists(unpacked)) return unpacked;
+		return bundled; // Fall through to original path for error reporting
+	}
 	fs::path scenPath;
 
 	for(fs::path scenDir : all_scen_dirs()){

@@ -1198,55 +1198,7 @@ word_rect_t word_rect_from_action(ticpp::Element& elem) { return word_rect_t(); 
 void launchDocs(std::string page) {}
 void launchURL(std::string url) {}
 
-// Stack widget (page container)
-class cStack {
-public:
-	virtual ~cStack() {}
-	cStack(iComponent& parent);
-	void changeSelectedPage(int delta, bool wrap);
-	bool setPage(unsigned long page, bool animate);
-	void setPageCount(unsigned long count);
-	unsigned long getPage() const;
-	unsigned long getPageCount() const;
-	void fillTabOrder(std::vector<int>& first, std::vector<int>& second);
-};
-
-cStack::cStack(iComponent& parent) {}
-void cStack::changeSelectedPage(int delta, bool wrap) {}
-bool cStack::setPage(unsigned long page, bool animate) { return true; }
-void cStack::setPageCount(unsigned long count) {}
-unsigned long cStack::getPage() const { return 0; }
-unsigned long cStack::getPageCount() const { return 0; }
-void cStack::fillTabOrder(std::vector<int>& first, std::vector<int>& second) {}
-
-// Additional widget classes
-class cConnector {
-public:
-	virtual ~cConnector() {}
-	cConnector(iComponent& parent);
-};
-
-cConnector::cConnector(iComponent& parent) {}
-
-class cScrollPane {
-public:
-	virtual ~cScrollPane() {}
-	cScrollPane(iComponent& parent);
-};
-
-cScrollPane::cScrollPane(iComponent& parent) {}
-
-class cTilemap {
-public:
-	virtual ~cTilemap() {}
-	cTilemap(iComponent& parent);
-	void fillTabOrder(std::vector<int>& first, std::vector<int>& second);
-};
-
-cTilemap::cTilemap(iComponent& parent) {}
-void cTilemap::fillTabOrder(std::vector<int>& first, std::vector<int>& second) {}
-
-// NOTE: cContainer now provided by container.cpp
+// NOTE: cStack, cScrollPane, cTilemap, cConnector now provided by real source files
 
 // Additional preferences function
 std::string get_string_pref(std::string key, std::string defaultVal) {
