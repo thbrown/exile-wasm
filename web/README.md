@@ -1,120 +1,72 @@
 # Blades of Exile - WebAssembly Port
 
-## Phase 1: Build System & Emscripten Setup ✅ COMPLETE
+The WASM port compiles the full Blades of Exile game to run in a web browser using Emscripten.
 
-Successfully set up the WebAssembly build pipeline for Blades of Exile.
+## Status
 
-### Completed Tasks
+All core systems are working:
+- **Rendering** - Canvas 2D via SFML compatibility layer
+- **Input** - Mouse and keyboard via browser event bridge
+- **Audio** - Web Audio API sound effects
+- **Save/Load** - IndexedDB persistent storage
+- **Dialogs** - Full dialog system with ASYNCIFY blocking loops
+- **Scenarios** - All base scenarios playable
 
-1. **Emscripten SDK Installation**: Installed Emscripten 5.0.0
-2. **Build Directory Structure**: Created `build/web/` and `web/` directories
-3. **CMakeLists.txt**: Created minimal CMake configuration for web builds
-4. **HTML Shell**: Created custom `index.html` with canvas and console output
-5. **Test Compilation**: Successfully compiled and tested basic WASM module
+See [TODO.md](./TODO.md) for remaining limitations and future work.
 
-### Verification Results
+## How to Build
 
-- ✅ Web build produces `boe.wasm` + `boe.js`
-- ✅ Browser console shows "BoE WASM initialized"
-- ✅ No compilation errors
-- ✅ Desktop builds unaffected (still use SConstruct)
+See [BUILD_WEB.md](../BUILD_WEB.md) in the repo root.
 
-### How to Build
-
+Quick start:
 ```bash
-# Using the build script (recommended)
-./build_web.sh
+# Dev build (fast compile)
+bash build_wasm_dev.sh
 
-# Or manually
-cd build/web
-/d/gitRepos/emsdk/python/3.13.3_64bit/python.exe \
-  /d/gitRepos/emsdk/upstream/emscripten/emcc.py \
-  ../../web/main_web.cpp \
-  -o boe.html \
-  -s WASM=1 \
-  -s USE_ZLIB=1 \
-  -s ALLOW_MEMORY_GROWTH=1 \
-  -g
+# Prod build (optimized, for GitHub Pages)
+bash build_wasm_prod.sh
 ```
 
-### How to Test
+## Architecture
 
-```bash
-# Start local web server
-cd build/web
-python -m http.server 8080
+### Compatibility Layer
+Rather than a full platform abstraction, the port uses compat headers that stub out SFML
+and Boost APIs using C++17 stdlib and Emscripten APIs:
 
-# Or test with Node.js
-/d/gitRepos/emsdk/node/22.16.0_64bit/bin/node.exe boe.js
-```
+| Header | Replaces |
+|--------|---------|
+| `src/compat/graphics.hpp` | `SFML/Graphics.hpp` - Canvas 2D rendering |
+| `src/compat/audio.hpp` | `SFML/Audio.hpp` - Web Audio API |
+| `src/compat/event.hpp` | `SFML/Window.hpp` events |
+| `src/compat/time.hpp` | `sf::Time`, `sf::Clock` |
+| `src/compat/texture.hpp` | `sf::Texture` - JS Image loading |
+| `src/compat/boost_compat.hpp` | Boost string/optional/lexical_cast |
+| `src/compat/fmt_compat.hpp` | `fmt::format` |
 
-Then open: http://localhost:8080
+### Event Bridge
+Browser events → C++ game loop:
+- `web/events.js` - captures browser events, calls C++ via `Module.ccall`
+- `web/web_stubs.cpp` - `push_mouse_event()` / `push_key_event()` exports, event queue
+- `src/compat/graphics.hpp` - `sf::RenderWindow::pollEvent()` dequeues events
 
-### File Structure
+### Save/Load
+- **Save**: Ctrl+S → `do_save()` writes to Emscripten MEMFS → JS syncs to IndexedDB
+- **Load**: Ctrl+O intercepted in `events.js` → file dialog → writes to MEMFS → `wasm_load_from_path()` called
+- Both flows bypass ASYNCIFY to avoid nested sleep call issues
 
-```
-cboe/
-├── web/                      # Web-specific source files
-│   ├── index.html           # Custom HTML shell
-│   ├── main_web.cpp         # Minimal test main file
-│   └── README.md            # This file
-├── build/web/               # Build output directory
-│   ├── boe.wasm            # Compiled WebAssembly binary
-│   ├── boe.js              # Emscripten JavaScript glue code
-│   ├── boe.html            # Generated HTML (test)
-│   └── index.html          # Custom HTML shell (copied)
-├── CMakeLists.txt           # CMake configuration for web builds
-└── build_web.sh             # Build script
-```
+### ASYNCIFY
+ASYNCIFY is enabled for blocking dialog loops. Critical constraint: **never nest ASYNCIFY
+sleep calls**. All `sf::sleep()` calls and dialogs in game logic are guarded with
+`#ifndef __EMSCRIPTEN__`. See MEMORY.md for details.
 
-### Current Status
+## Web-specific Files
 
-**Phase 1**: ✅ Complete (Build System & Emscripten Setup)
-**Phase 2**: ✅ Complete (Platform Abstraction Layer)
-**Phase 3**: 🔄 Next (Canvas 2D Rendering Implementation)
-
-### Phase 2 Completion
-
-Created platform-independent abstraction layers:
-- ✅ Graphics (IRenderTarget, ITexture, IRenderWindow, IRenderTexture)
-- ✅ Input (IInputHandler, InputEvent, KeyCode mapping)
-- ✅ Audio (ISoundPlayer, ISound)
-- ✅ File System (IFileSystem, Path)
-
-**Implementation Status**:
-- Desktop (SFML): Fully implemented
-- Web (Canvas/Browser): Stub implementations (to be completed in Phases 3-6)
-
-See [PHASE2_SUMMARY.md](./PHASE2_SUMMARY.md) for detailed information.
-
-### Next Steps
-
-Phase 3 will implement Canvas 2D rendering:
-- Implement Canvas 2D backend for graphics
-- Display game terrain and UI
-- Text rendering with web fonts
-- Off-screen canvas for RenderTextures
-
----
-
-## Development Notes
-
-### Emscripten Configuration
-
-Current flags:
-- `-s WASM=1` - Compile to WebAssembly
-- `-s USE_ZLIB=1` - Include zlib (built-in)
-- `-s ALLOW_MEMORY_GROWTH=1` - Allow dynamic memory growth
-- `-g` - Include debug symbols
-
-### Browser Requirements
-
-- Modern browser with WebAssembly support
-- Chrome 57+, Firefox 52+, Safari 11+, Edge 16+
-
-### Known Limitations
-
-- Desktop builds continue to use SConstruct (this is intentional)
-- CMake build currently only supports Emscripten target
-- Resources not yet preloaded (Phase 4)
-- No graphics rendering yet (Phase 3)
+| File | Purpose |
+|------|---------|
+| `web_stubs.cpp` | Platform stub implementations |
+| `boe.menus.wasm.cpp` | WASM-specific minimal menu bar |
+| `events.js` | Browser event capture and routing |
+| `savemanager.js` | IndexedDB save slot management |
+| `filedialog.js` / `filedialog.css` | Custom file open/save dialog |
+| `shell.html` | Emscripten HTML shell with splash screen |
+| `TODO.md` | Remaining work items |

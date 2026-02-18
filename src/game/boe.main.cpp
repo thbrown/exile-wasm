@@ -9,86 +9,8 @@
 	#include "compat/draw_dedup.hpp"
 #endif
 
-#ifndef __EMSCRIPTEN__
-	#include <boost/filesystem/operations.hpp>
-	#include <boost/lexical_cast.hpp>
-	#include <boost/optional.hpp>
-	#include <fmt/format.h>
-#else
-	#include <filesystem>
-	#include <optional>
-	#include <string>
-	#include <sstream>
-	namespace fs = std::filesystem;
-	namespace boost {
-		using std::optional;
-		class bad_lexical_cast : public std::runtime_error {
-		public:
-			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
-		};
-		template<typename T, typename S>
-		T lexical_cast(const S& arg) {
-			try {
-				if constexpr (std::is_same_v<T, std::string>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return arg; // string → string (identity)
-					} else if constexpr (std::is_same_v<S, const char*> || std::is_same_v<S, char*>) {
-						return std::string(arg); // C string → string
-					} else if constexpr (std::is_enum_v<S>) {
-						return std::to_string(static_cast<int>(arg));
-					} else if constexpr (std::is_integral_v<S> || std::is_floating_point_v<S>) {
-						return std::to_string(arg);
-					}
-				} else if constexpr (std::is_integral_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				} else if constexpr (std::is_enum_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						// Try using operator>> if available (for named enums)
-						std::istringstream iss(arg);
-						T result;
-						iss >> result;
-						if(!iss.fail()) {
-							return result;
-						}
-						// Fallback to numeric conversion
-						return static_cast<T>(std::stoi(arg));
-					}
-				}
-				std::cerr << "lexical_cast UNSUPPORTED type conversion, typeid T=" << typeid(T).name() << " S=" << typeid(S).name() << std::endl;
-				throw bad_lexical_cast();
-			} catch (const bad_lexical_cast&) {
-				throw;
-			} catch (const std::exception& e) {
-				if constexpr (std::is_same_v<S, std::string>) {
-					std::cerr << "lexical_cast FAILED converting string '" << arg << "' to " << typeid(T).name() << ": " << e.what() << std::endl;
-				} else {
-					std::cerr << "lexical_cast FAILED: " << e.what() << " target=" << typeid(T).name() << std::endl;
-				}
-				throw bad_lexical_cast();
-			}
-		}
-	}
-	namespace fmt {
-		inline std::string to_str(const std::string& s) { return s; }
-		inline std::string to_str(const char* s) { return std::string(s); }
-		template<typename T>
-		inline std::string to_str(T val) { return std::to_string(val); }
-		inline std::string format(const std::string& fmt_str) {
-			return fmt_str;
-		}
-		template<typename T, typename... Args>
-		std::string format(const std::string& fmt_str, T first, Args... rest) {
-			size_t pos = fmt_str.find("{}");
-			if (pos == std::string::npos) {
-				return fmt_str;
-			}
-			std::string result = fmt_str.substr(0, pos) + to_str(first) + fmt_str.substr(pos + 2);
-			return format(result, rest...);
-		}
-	}
-#endif
+#include "compat/boost_compat.hpp"
+#include "compat/fmt_compat.hpp"
 #include <unordered_map>
 #include <string>
 #include <memory>

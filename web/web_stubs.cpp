@@ -1,7 +1,16 @@
 /*
  * web_stubs.cpp
- * Temporary stub implementations for web builds
- * These allow linking to succeed while full implementations are being developed
+ * WASM platform implementations for Blades of Exile.
+ *
+ * This file provides:
+ *   - Browser event bridge (push_mouse_event, push_key_event, pollEvent)
+ *   - Save/load integration (sync_save_to_indexeddb, wasm_load_from_path)
+ *   - Cursor management (Canvas CSS cursors)
+ *   - Preferences (localStorage-backed stubs)
+ *   - Intentionally empty stubs for systems not ported to WASM:
+ *       - Replay system (pop_next_action, encode_file, decode_file)
+ *       - Clipboard (set_clipboard, get_clipboard)
+ *   See web/TODO.md for details on unimplemented systems.
  */
 
 #include <string>

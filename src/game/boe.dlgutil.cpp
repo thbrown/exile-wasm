@@ -3,81 +3,8 @@
 #include <algorithm>
 #include <iomanip>
 #include <string>
-#ifndef __EMSCRIPTEN__
-	#include <boost/algorithm/string/replace.hpp>
-	#include <fmt/format.h>
-	#include <fmt/ranges.h>
-	#include <fmt/compile.h>
-#else
-	namespace boost {
-		inline void replace_first(std::string& input, const std::string& search, const std::string& replace) {
-			size_t pos = input.find(search);
-			if (pos != std::string::npos) {
-				input.replace(pos, search.length(), replace);
-			}
-		}
-		inline void replace_all(std::string& input, const std::string& search, const std::string& replace) {
-			size_t pos = 0;
-			while ((pos = input.find(search, pos)) != std::string::npos) {
-				input.replace(pos, search.length(), replace);
-				pos += replace.length();
-			}
-		}
-	}
-	#define FMT_COMPILE(s) (s)
-
-	namespace fmt {
-		inline std::string to_str(const std::string& s) { return s; }
-		inline std::string to_str(const char* s) { return std::string(s); }
-		template<typename T>
-		inline std::string to_str(T val) { return std::to_string(val); }
-		inline std::string format(const std::string& fmt_str) {
-			return fmt_str;
-		}
-		template<typename T, typename... Args>
-		std::string format(const std::string& fmt_str, T first, Args... rest) {
-			size_t pos = fmt_str.find("{}");
-			if (pos == std::string::npos) {
-				return fmt_str;
-			}
-			std::string result = fmt_str.substr(0, pos) + to_str(first) + fmt_str.substr(pos + 2);
-			return format(result, rest...);
-		}
-		// Stub for named arguments - just ignores the name
-		template<typename T>
-		struct arg_wrapper { T value; };
-		template<typename T>
-		inline arg_wrapper<T> arg(const char* name, T value) {
-			return arg_wrapper<T>{value};
-		}
-		// Overload format to handle arg_wrapper
-		template<typename T, typename... Args>
-		std::string format(const std::string& fmt_str, arg_wrapper<T> first, Args... rest) {
-			size_t pos = fmt_str.find("{}");
-			if (pos == std::string::npos) {
-				return fmt_str;
-			}
-			std::string result = fmt_str.substr(0, pos) + to_str(first.value) + fmt_str.substr(pos + 2);
-			return format(result, rest...);
-		}
-		// Stub for fmt::join - joins a container with a separator
-		template<typename Container>
-		std::string join(const Container& container, const std::string& separator) {
-			std::string result;
-			bool first = true;
-			for (const auto& item : container) {
-				if (!first) {
-					result += separator;
-				}
-				result += to_str(item);
-				first = false;
-			}
-			return result;
-		}
-	}
-	// Define BOOST_FALLTHROUGH for switch case fallthrough
-	#define BOOST_FALLTHROUGH [[fallthrough]]
-#endif
+#include "compat/boost_compat.hpp"
+#include "compat/fmt_compat.hpp"
 
 #include "boe.global.hpp"
 
@@ -116,36 +43,6 @@
 #include "dialogxml/widgets/stack.hpp"
 #ifndef __EMSCRIPTEN__
 	#include <boost/lexical_cast.hpp>
-#else
-	namespace boost {
-		class bad_lexical_cast : public std::runtime_error {
-		public:
-			bad_lexical_cast() : std::runtime_error("bad lexical cast") {}
-		};
-		template<typename T, typename S>
-		T lexical_cast(const S& arg) {
-			try {
-				if constexpr (std::is_same_v<T, std::string>) {
-					if constexpr (std::is_enum_v<S>) {
-						return std::to_string(static_cast<int>(arg));
-					} else if constexpr (std::is_integral_v<S> || std::is_floating_point_v<S>) {
-						return std::to_string(arg);
-					}
-				} else if constexpr (std::is_integral_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				} else if constexpr (std::is_enum_v<T>) {
-					if constexpr (std::is_same_v<S, std::string>) {
-						return static_cast<T>(std::stoi(arg));
-					}
-				}
-				throw bad_lexical_cast();
-			} catch (...) {
-				throw bad_lexical_cast();
-			}
-		}
-	}
 #endif
 #include "tools/prefs.hpp"
 #include "scenario/shop.hpp"

@@ -39,32 +39,8 @@
 #include "tools/winutil.hpp"
 #include "tools/prefs.hpp"
 #include "replay.hpp"
-#ifndef __EMSCRIPTEN__
-	#include <boost/lexical_cast.hpp>
-	#include <fmt/format.h>
-#else
-	#include "compat/boost_compat.hpp"
-	namespace fmt {
-		inline std::string to_str(const std::string& s) { return s; }
-		inline std::string to_str(const char* s) { return std::string(s); }
-		template<typename T>
-		inline std::string to_str(T val) { return std::to_string(val); }
-
-		inline std::string format(const std::string& fmt_str) {
-			return fmt_str;
-		}
-
-		template<typename T, typename... Args>
-		std::string format(const std::string& fmt_str, T first, Args... rest) {
-			size_t pos = fmt_str.find("{}");
-			if (pos == std::string::npos) {
-				return fmt_str;
-			}
-			std::string result = fmt_str.substr(0, pos) + to_str(first) + fmt_str.substr(pos + 2);
-			return format(result, rest...);
-		}
-	}
-#endif
+#include "compat/boost_compat.hpp"
+#include "compat/fmt_compat.hpp"
 
 
 #ifndef MSBUILD_GITREV
@@ -1509,9 +1485,6 @@ void draw_rest_screen() {
 //      3 - pole  4 - club  5 - fireball hit  6 - squish  7 - cold
 //      8 - acid  9 - claw  10 - bite  11 - slime  12 - zap  13 - missile hit
 void boom_space(location where,short mode,short type,short damage,short sound) {
-#ifdef __EMSCRIPTEN__
-	EM_ASM_({console.log('boom_space called: type=', $0, 'damage=', $1, 'sound=', $2);}, type, damage, sound);
-#endif
 	location where_draw(4,4);
 	rectangle source_rect = {0,0,36,28},text_rect,dest_rect = {13,13,49,41},big_to = {13,13,337,265},store_rect;
 	short del_len;
@@ -1578,10 +1551,6 @@ void boom_space(location where,short mode,short type,short damage,short sound) {
 	dest_rect.offset(win_to_rects[WINRECT_TERVIEW].topLeft());
 
 	source_rect.offset(-store_rect.left + 28 * type,-store_rect.top);
-#ifdef __EMSCRIPTEN__
-	EM_ASM_({console.log('boom_space: drawing sprite at dest rect:', $0, $1, $2, $3);},
-		dest_rect.left, dest_rect.top, dest_rect.right, dest_rect.bottom);
-#endif
 	rect_draw_some_item(*ResMgr::graphics.get("booms"),source_rect,mainPtr(),dest_rect,sf::BlendAlpha);
 	
 	if(damage > 0 && dest_rect.right - dest_rect.left >= 28 && dest_rect.bottom - dest_rect.top >= 36) {

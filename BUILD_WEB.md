@@ -2,174 +2,126 @@
 
 ## Prerequisites
 
-1. **Emscripten SDK** must be installed and activated:
+1. **Emscripten SDK** installed at `/d/gitRepos/emsdk`:
    ```bash
-   # If not already installed:
-   cd D:/gitRepos
+   cd /d/gitRepos
    git clone https://github.com/emscripten-core/emsdk.git
    cd emsdk
    ./emsdk install 5.0.0
    ./emsdk activate 5.0.0
-
-   # Activate for current session:
-   source ./emsdk_env.sh  # Linux/Mac
-   # OR
-   emsdk_env.bat          # Windows
    ```
+   The build scripts reference the SDK directly (no need to `source emsdk_env.sh`).
 
-2. **Python 3** for running the web server
+2. **Python 3** for running a local test server.
 
-## Building the WASM Game
+3. **Run from the repo root** - all build scripts must be run from `D:/gitRepos/cboe/`.
+
+---
+
+## Dev Build (fast, with debug symbols)
 
 ```bash
-cd D:/gitRepos/cboe
-bash build_minimal_game.sh
+bash build_wasm_dev.sh
 ```
 
-This will:
-- Compile 94+ C++ source files to WebAssembly
-- Preload game resources (graphics, sounds, fonts, etc.) into VFS
-- Generate output in `build/web_game/`:
-  - `boe_minimal.html` - HTML shell
-  - `boe_minimal.js` - Emscripten JavaScript glue code (~300KB)
-  - `boe_minimal.wasm` - Compiled game code (~45MB)
-  - `boe_minimal.data` - Preloaded resources
+Output in `build/web_game/`:
+- `boe.html` - HTML shell with splash screen
+- `boe.js` - Emscripten JavaScript glue
+- `boe.wasm` - Compiled game (unoptimized)
+- `boe.data` - Preloaded game resources
+- `events.js`, `savemanager.js`, `filedialog.js`, `filedialog.css`
+- `rsrc/cursors/*.gif`
 
-## Running the Game Locally
+Test it:
+```bash
+cd build/web_game
+python -m http.server 8081
+# Open: http://localhost:8081/boe.html
+```
 
-Start a local web server:
+---
+
+## Prod Build (optimized, for GitHub Pages)
 
 ```bash
-cd D:/gitRepos/cboe/build/web_game
+bash build_wasm_prod.sh
+```
+
+Output in `docs/`:
+- `index.html` - Entry point for GitHub Pages
+- `boe.js`, `boe.wasm`, `boe.data`
+- Web assets and cursors
+
+Test it:
+```bash
+cd docs
 python -m http.server 8082
+# Open: http://localhost:8082/index.html
 ```
 
-Then open in your browser:
-```
-http://localhost:8082/boe_minimal.html
-```
+Commit `docs/` to deploy to GitHub Pages.
 
-**Important**: After rebuilding, always **hard refresh** the browser:
+---
+
+## Shared Configuration
+
+Both scripts source `build_wasm_common.sh` which contains:
+- Emscripten tool paths
+- Full list of 107 source files
+- Include paths
+- Base compiler flags (WASM, ASYNCIFY, preload-file directives, etc.)
+
+---
+
+## After Rebuilding
+
+Always **hard refresh** the browser to clear cached WASM:
 - Windows/Linux: `Ctrl + Shift + R`
 - Mac: `Cmd + Shift + R`
 
-This clears the browser cache so you see the new WASM file.
+---
 
-## Current Implementation Status
+## Key Source Files
 
-### ✅ Working
-- **Canvas 2D rendering** - Graphics display in browser
-- **Texture loading** - Images loaded from VFS and rendered
-- **Text rendering** - UI labels and text display correctly
-- **Animation** - Sprite frame cycling working
-- **Main loop** - Non-blocking 60 FPS game loop with `emscripten_set_main_loop()`
-- **Resource loading** - All game data preloaded via `--preload-file`
+| File | Purpose |
+|------|---------|
+| `web/web_stubs.cpp` | Platform stubs: event queue, sound, prefs, replay |
+| `web/events.js` | Browser → C++ event bridge (mouse, keyboard) |
+| `web/savemanager.js` | IndexedDB save/load management |
+| `web/shell.html` | Custom Emscripten HTML shell with splash screen |
+| `src/compat/graphics.hpp` | SFML → Canvas 2D stub layer |
+| `src/compat/audio.hpp` | SFML Audio → Web Audio API stub layer |
+| `src/compat/boost_compat.hpp` | Boost → stdlib compatibility |
+| `src/compat/fmt_compat.hpp` | fmt::format → variadic template stub |
 
-### ⚠️ In Progress
-- **Sprite sheet rendering** - Texture rectangles need refinement
-- **Draw deduplication** - May be filtering out valid sprites
-
-### ❌ Not Yet Implemented
-- **Input handling** - Mouse and keyboard events
-- **Audio** - Web Audio API for sounds/music
-- **Save/Load** - IndexedDB for persistent storage
-- **Full UI** - Dialogs and menus
-
-## Key Files
-
-- `build_minimal_game.sh` - Main build script
-- `web/web_stubs.cpp` - Web-specific platform implementations
-- `src/compat/graphics.hpp` - Graphics abstraction layer (Canvas 2D)
-- `src/compat/texture.hpp` - Texture loading (VFS to JavaScript Image)
-- `src/game/boe.main.cpp` - Main loop with Emscripten integration
+---
 
 ## Debugging
 
-### Browser Console
-Open Developer Tools (F12) to see:
-- Console logs from C++ (`std::cout` → `console.log`)
-- Texture loading messages
-- JavaScript errors
+Open browser DevTools (F12) to see console output from C++ (`std::cout` / `std::cerr`).
 
 ### Common Issues
 
-**Black screen after build:**
-- Hard refresh the browser (Ctrl+Shift+R)
-- Check console for errors
-- Verify server is running on correct port
+**Black screen / nothing loads:**
+- Hard refresh (Ctrl+Shift+R)
+- Check DevTools console for errors
 
 **"Assertion failed: No EM_ASM constant found":**
-- WASM file and JS file are out of sync
-- Hard refresh to clear cache
+- JS and WASM files are out of sync - hard refresh
 
-**Resources not loading:**
-- Check `data` directory exists in `build/web_game/`
-- Verify `--preload-file data@/data` in build script
-- Check browser console for 404 errors
+**Build fails with linker errors:**
+- A new `.cpp` file may need to be added to `SOURCES` in `build_wasm_common.sh`
 
-## Development Workflow
+**Resources not found at runtime:**
+- Check that the `--preload-file` directives in `build_wasm_common.sh` cover the needed paths
 
-1. Make code changes
-2. Run `bash build_minimal_game.sh`
-3. Hard refresh browser (Ctrl+Shift+R)
-4. Check console for errors
-5. Repeat
+---
 
-## Next Steps for Development
+## Architecture Notes
 
-### Implement Input Handling
-- Add event listeners for mouse/keyboard in main loop
-- Map browser events to game input
-- See `src/compat/event.hpp` for event structures
+The WASM port uses a compatibility header approach rather than full platform abstraction:
+- `src/compat/graphics.hpp` replaces SFML graphics with Canvas 2D `EM_ASM_` calls
+- `src/compat/audio.hpp` replaces SFML Audio with Web Audio API stubs
+- `src/compat/event.hpp` / `src/compat/time.hpp` replace SFML system types
 
-### Fix Sprite Sheet Rendering
-- Texture rectangles defined in `src/game/boe.graphics.cpp`
-- Example: `startup_from[4]` array has correct pixel coordinates
-- Ensure draw code uses these exactly as specified
-
-### Add Audio Support
-- Implement Web Audio API in `src/compat/audio.hpp`
-- Load sounds from VFS
-- Play using AudioContext
-
-## Build Script Details
-
-The `build_minimal_game.sh` script uses these key Emscripten flags:
-
-```bash
--s ALLOW_MEMORY_GROWTH=1          # Allow WASM memory to grow
--s USE_SDL=0                       # Don't use SDL (custom Canvas 2D)
--s DISABLE_EXCEPTION_CATCHING=0    # Enable C++ exceptions
---preload-file data@/data          # Embed resources in .data file
--s EXPORTED_RUNTIME_METHODS=['FS'] # Export filesystem API
-```
-
-## Performance Notes
-
-- WASM file is ~45MB (unoptimized debug build)
-- First load takes a few seconds to download and compile
-- Subsequent loads faster due to browser caching
-- 60 FPS target with `emscripten_set_main_loop()`
-
-## Troubleshooting Build Errors
-
-**"unknown type name 'console'" in EM_ASM:**
-- JavaScript syntax error in EM_ASM block
-- Check for JS reserved words being parsed as C++
-- Simplify complex JS expressions
-
-**"table index is out of bounds":**
-- Missing widget implementation (button, scrollbar, etc.)
-- Check that all required .cpp files are in SOURCES list
-
-**Linker errors:**
-- Missing source files in build script
-- Check that all dependencies are included
-- Verify function implementations exist
-
-## Resources
-
-- [Emscripten Documentation](https://emscripten.org/docs/getting_started/index.html)
-- [Porting Guide](https://emscripten.org/docs/porting/index.html)
-- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
-- [Canvas 2D API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
+Game logic is otherwise unchanged. See `web/TODO.md` for remaining work items.

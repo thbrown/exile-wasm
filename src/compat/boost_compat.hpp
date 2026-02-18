@@ -6,6 +6,16 @@
 
 #pragma once
 
+// Macro for marking unreachable code while satisfying the compiler's return requirement.
+// Equivalent to Boost's BOOST_UNREACHABLE_RETURN.
+#ifndef BOOST_UNREACHABLE_RETURN
+	#ifdef __GNUC__
+		#define BOOST_UNREACHABLE_RETURN(x) __builtin_unreachable()
+	#else
+		#define BOOST_UNREACHABLE_RETURN(x) return (x)
+	#endif
+#endif
+
 #ifdef __EMSCRIPTEN__
 
 #include <optional>
@@ -102,6 +112,19 @@ namespace boost {
 			}
 		}
 
+		inline void trim_left(std::string& str) {
+			auto start = str.find_first_not_of(" \t\n\r");
+			if (start == std::string::npos) {
+				str.clear();
+			} else {
+				str = str.substr(start);
+			}
+		}
+
+		inline void to_lower(std::string& str) {
+			for (char& c : str) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+		}
+
 		inline bool starts_with(const std::string& str, const std::string& prefix) {
 			return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
 		}
@@ -153,6 +176,8 @@ namespace boost {
 	// (some code calls boost::replace_first instead of boost::algorithm::replace_first)
 	using algorithm::trim;
 	using algorithm::trim_right;
+	using algorithm::trim_left;
+	using algorithm::to_lower;
 	using algorithm::replace_all;
 	using algorithm::replace_first;
 	using algorithm::erase_all;
