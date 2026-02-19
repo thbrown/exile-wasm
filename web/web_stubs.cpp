@@ -15,6 +15,7 @@
 
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <filesystem>
 #include <vector>
 #include <map>
@@ -505,29 +506,250 @@ void set_cursor(cursor_type type) {
 
 // Note: cControl, cTextMsg, cChoiceDlog now provided by dialogxml system
 
-// Preferences system stubs
-int get_int_pref(std::string key, int defaultVal) {
-	return defaultVal;
-}
-
-double get_float_pref(std::string key, double defaultVal) {
-	return defaultVal;
-}
-
-// Simple preferences implementation for WASM with localStorage persistence
+// ============================================================
+// Preferences system - localStorage persistence
+// Format: BoE_Prefs = {"b":{...},"i":{...},"d":{...},"s":{...},"a":{...}}
+// Sections: b=bools, i=ints, d=doubles, s=strings, a=int-arrays
+// ============================================================
 static std::map<std::string, bool> boolPrefs;
 static std::map<std::string, int> intPrefs;
 static std::map<std::string, double> doublePrefs;
+static std::map<std::string, std::string> stringPrefs;
 static std::map<std::string, std::vector<int>> iarrayPrefs;
 
-// Load prefs from localStorage on first access
 static bool prefsInitialized = false;
+
+// Extract the inner content of a named object section from flat JSON.
+// E.g. given json={"b":{...},"i":{...}} and key="b", returns content between the braces.
+static std::string extractSection(const std::string& json, const std::string& sectionKey) {
+	std::string marker = "\"" + sectionKey + "\":{";
+	size_t pos = json.find(marker);
+	if (pos == std::string::npos) return "";
+	size_t start = pos + marker.size();
+	int depth = 1;
+	size_t i = start;
+	while (i < json.size() && depth > 0) {
+		if (json[i] == '{') depth++;
+		else if (json[i] == '}') depth--;
+		if (depth > 0) i++;
+	}
+	if (depth != 0) return "";
+	return json.substr(start, i - start);
+}
+
+static void loadBoolSection(const std::string& section) {
+	size_t pos = 0;
+	while (pos < section.size()) {
+		size_t kStart = section.find('"', pos);
+		if (kStart == std::string::npos) break;
+		size_t kEnd = section.find('"', kStart + 1);
+		if (kEnd == std::string::npos) break;
+		std::string key = section.substr(kStart + 1, kEnd - kStart - 1);
+		size_t colon = section.find(':', kEnd);
+		if (colon == std::string::npos) break;
+		size_t vStart = colon + 1;
+		boolPrefs[key] = (section.substr(vStart, 4) == "true");
+		size_t comma = section.find(',', vStart);
+		pos = (comma == std::string::npos) ? section.size() : comma + 1;
+	}
+}
+
+static void loadIntSection(const std::string& section) {
+	size_t pos = 0;
+	while (pos < section.size()) {
+		size_t kStart = section.find('"', pos);
+		if (kStart == std::string::npos) break;
+		size_t kEnd = section.find('"', kStart + 1);
+		if (kEnd == std::string::npos) break;
+		std::string key = section.substr(kStart + 1, kEnd - kStart - 1);
+		size_t colon = section.find(':', kEnd);
+		if (colon == std::string::npos) break;
+		size_t vStart = colon + 1;
+		size_t vEnd = section.find_first_of(",}", vStart);
+		if (vEnd == std::string::npos) vEnd = section.size();
+		try { intPrefs[key] = std::stoi(section.substr(vStart, vEnd - vStart)); } catch (...) {}
+		pos = (vEnd < section.size() && section[vEnd] == ',') ? vEnd + 1 : section.size();
+	}
+}
+
+static void loadDoubleSection(const std::string& section) {
+	size_t pos = 0;
+	while (pos < section.size()) {
+		size_t kStart = section.find('"', pos);
+		if (kStart == std::string::npos) break;
+		size_t kEnd = section.find('"', kStart + 1);
+		if (kEnd == std::string::npos) break;
+		std::string key = section.substr(kStart + 1, kEnd - kStart - 1);
+		size_t colon = section.find(':', kEnd);
+		if (colon == std::string::npos) break;
+		size_t vStart = colon + 1;
+		size_t vEnd = section.find_first_of(",}", vStart);
+		if (vEnd == std::string::npos) vEnd = section.size();
+		try { doublePrefs[key] = std::stod(section.substr(vStart, vEnd - vStart)); } catch (...) {}
+		pos = (vEnd < section.size() && section[vEnd] == ',') ? vEnd + 1 : section.size();
+	}
+}
+
+static void loadStringSection(const std::string& section) {
+	size_t pos = 0;
+	while (pos < section.size()) {
+		size_t kStart = section.find('"', pos);
+		if (kStart == std::string::npos) break;
+		size_t kEnd = section.find('"', kStart + 1);
+		if (kEnd == std::string::npos) break;
+		std::string key = section.substr(kStart + 1, kEnd - kStart - 1);
+		size_t colon = section.find(':', kEnd);
+		if (colon == std::string::npos) break;
+		size_t vOpen = section.find('"', colon + 1);
+		if (vOpen == std::string::npos) break;
+		size_t vClose = vOpen + 1;
+		std::string val;
+		while (vClose < section.size()) {
+			if (section[vClose] == '\\' && vClose + 1 < section.size()) {
+				char next = section[vClose + 1];
+				if (next == '"') val += '"';
+				else if (next == '\\') val += '\\';
+				else val += next;
+				vClose += 2;
+			} else if (section[vClose] == '"') {
+				break;
+			} else {
+				val += section[vClose++];
+			}
+		}
+		stringPrefs[key] = val;
+		size_t comma = section.find(',', vClose + 1);
+		pos = (comma == std::string::npos) ? section.size() : comma + 1;
+	}
+}
+
+static void loadArraySection(const std::string& section) {
+	size_t pos = 0;
+	while (pos < section.size()) {
+		size_t kStart = section.find('"', pos);
+		if (kStart == std::string::npos) break;
+		size_t kEnd = section.find('"', kStart + 1);
+		if (kEnd == std::string::npos) break;
+		std::string key = section.substr(kStart + 1, kEnd - kStart - 1);
+		size_t colon = section.find(':', kEnd);
+		if (colon == std::string::npos) break;
+		size_t aOpen = section.find('[', colon + 1);
+		if (aOpen == std::string::npos) break;
+		size_t aClose = section.find(']', aOpen + 1);
+		if (aClose == std::string::npos) break;
+		std::string arrContent = section.substr(aOpen + 1, aClose - aOpen - 1);
+		std::vector<int> arr;
+		if (!arrContent.empty()) {
+			std::istringstream iss(arrContent);
+			std::string token;
+			while (std::getline(iss, token, ',')) {
+				try { arr.push_back(std::stoi(token)); } catch (...) {}
+			}
+		}
+		iarrayPrefs[key] = arr;
+		size_t comma = section.find(',', aClose + 1);
+		pos = (comma == std::string::npos) ? section.size() : comma + 1;
+	}
+}
+
+// Serialize all in-memory pref maps to a single JSON object string.
+static std::string buildPrefsJson() {
+	std::ostringstream oss;
+	oss << "{\"b\":{";
+	bool first = true;
+	for (auto& kv : boolPrefs) {
+		if (!first) oss << ",";
+		oss << "\"" << kv.first << "\":" << (kv.second ? "true" : "false");
+		first = false;
+	}
+	oss << "},\"i\":{";
+	first = true;
+	for (auto& kv : intPrefs) {
+		if (!first) oss << ",";
+		oss << "\"" << kv.first << "\":" << kv.second;
+		first = false;
+	}
+	oss << "},\"d\":{";
+	first = true;
+	for (auto& kv : doublePrefs) {
+		if (!first) oss << ",";
+		oss << "\"" << kv.first << "\":" << kv.second;
+		first = false;
+	}
+	oss << "},\"s\":{";
+	first = true;
+	for (auto& kv : stringPrefs) {
+		if (!first) oss << ",";
+		std::string escaped;
+		for (char c : kv.second) {
+			if (c == '"') escaped += "\\\"";
+			else if (c == '\\') escaped += "\\\\";
+			else escaped += c;
+		}
+		oss << "\"" << kv.first << "\":\"" << escaped << "\"";
+		first = false;
+	}
+	oss << "},\"a\":{";
+	first = true;
+	for (auto& kv : iarrayPrefs) {
+		if (!first) oss << ",";
+		oss << "\"" << kv.first << "\":[";
+		for (size_t i = 0; i < kv.second.size(); i++) {
+			if (i > 0) oss << ",";
+			oss << kv.second[i];
+		}
+		oss << "]";
+		first = false;
+	}
+	oss << "}}";
+	return oss.str();
+}
+
+// Load all prefs from localStorage on first access.
+// Primary source: BoE_Prefs (unified JSON). Legacy fallback: BoE_ReceivedHelp.
 static void initPrefs() {
 	if (prefsInitialized) return;
 	prefsInitialized = true;
 
-	// Load ReceivedHelp array from localStorage
-	char* jsonStr = (char*)EM_ASM_PTR({
+	// Try to load from new unified BoE_Prefs key
+	char* prefsStr = (char*)EM_ASM_PTR({
+		try {
+			var stored = localStorage.getItem('BoE_Prefs');
+			if (!stored) return 0;
+			var len = lengthBytesUTF8(stored) + 1;
+			var ptr = _malloc(len);
+			stringToUTF8(stored, ptr, len);
+			return ptr;
+		} catch(e) {
+			console.error('Failed to load BoE_Prefs from localStorage:', e);
+			return 0;
+		}
+	});
+
+	if (prefsStr) {
+		std::string json(prefsStr);
+		free(prefsStr);
+
+		std::string bSec = extractSection(json, "b");
+		if (!bSec.empty()) loadBoolSection(bSec);
+		std::string iSec = extractSection(json, "i");
+		if (!iSec.empty()) loadIntSection(iSec);
+		std::string dSec = extractSection(json, "d");
+		if (!dSec.empty()) loadDoubleSection(dSec);
+		std::string sSec = extractSection(json, "s");
+		if (!sSec.empty()) loadStringSection(sSec);
+		std::string aSec = extractSection(json, "a");
+		if (!aSec.empty()) loadArraySection(aSec);
+
+		printf("[PREFS] Loaded from BoE_Prefs: %zu bools, %zu ints, %zu doubles, %zu strings, %zu arrays\n",
+			boolPrefs.size(), intPrefs.size(), doublePrefs.size(), stringPrefs.size(), iarrayPrefs.size());
+
+		// If ReceivedHelp already present in new store, skip legacy migration
+		if (iarrayPrefs.count("ReceivedHelp")) return;
+	}
+
+	// Backwards compat: migrate ReceivedHelp from old BoE_ReceivedHelp key
+	char* legacyStr = (char*)EM_ASM_PTR({
 		try {
 			var stored = localStorage.getItem('BoE_ReceivedHelp');
 			if (!stored) return 0;
@@ -536,55 +758,52 @@ static void initPrefs() {
 			stringToUTF8(stored, ptr, len);
 			return ptr;
 		} catch(e) {
-			console.error('Failed to load ReceivedHelp from localStorage:', e);
+			console.error('Failed to load BoE_ReceivedHelp from localStorage:', e);
 			return 0;
 		}
 	});
 
-	if (jsonStr) {
-		std::string json(jsonStr);
-		free(jsonStr);
+	if (legacyStr) {
+		std::string json(legacyStr);
+		free(legacyStr);
 
-		// Simple JSON array parser
 		if (json.length() > 2 && json[0] == '[' && json.back() == ']') {
-			json = json.substr(1, json.length() - 2); // Remove [ ]
+			json = json.substr(1, json.length() - 2);
 			std::istringstream iss(json);
 			std::string token;
 			while (std::getline(iss, token, ',')) {
-				try {
-					iarrayPrefs["ReceivedHelp"].push_back(std::stoi(token));
-				} catch(...) {}
+				try { iarrayPrefs["ReceivedHelp"].push_back(std::stoi(token)); } catch(...) {}
 			}
 		}
-
 		if (!iarrayPrefs["ReceivedHelp"].empty()) {
-			printf("[PREFS] Loaded %zu ReceivedHelp items from localStorage\n",
+			printf("[PREFS] Migrated %zu ReceivedHelp items from legacy localStorage key\n",
 				iarrayPrefs["ReceivedHelp"].size());
 		}
 	}
 }
 
-// Save ReceivedHelp to localStorage
-static void saveReceivedHelp() {
-	auto& arr = iarrayPrefs["ReceivedHelp"];
-	if (arr.empty()) return;
-
-	// Build JSON array string
-	std::string json = "[";
-	for (size_t i = 0; i < arr.size(); i++) {
-		if (i > 0) json += ",";
-		json += std::to_string(arr[i]);
-	}
-	json += "]";
-
+// Write all in-memory prefs to localStorage as a single JSON object.
+static void savePrefsToStorage() {
+	std::string json = buildPrefsJson();
 	EM_ASM_({
-		var jsonStr = UTF8ToString($0);
 		try {
-			localStorage.setItem('BoE_ReceivedHelp', jsonStr);
+			localStorage.setItem('BoE_Prefs', UTF8ToString($0));
 		} catch(e) {
-			console.error('Failed to save ReceivedHelp to localStorage:', e);
+			console.error('Failed to save BoE_Prefs to localStorage:', e);
 		}
 	}, json.c_str());
+}
+
+int get_int_pref(std::string key, int defaultVal) {
+	initPrefs();
+	auto it = intPrefs.find(key);
+	return it != intPrefs.end() ? it->second : defaultVal;
+}
+
+double get_float_pref(std::string key, double defaultVal) {
+	initPrefs();
+	auto it = doublePrefs.find(key);
+	return it != doublePrefs.end() ? it->second : defaultVal;
 }
 
 bool get_bool_pref(std::string key, bool defaultVal) {
@@ -593,16 +812,30 @@ bool get_bool_pref(std::string key, bool defaultVal) {
 	return it != boolPrefs.end() ? it->second : defaultVal;
 }
 
+std::string get_string_pref(std::string key, std::string defaultVal) {
+	initPrefs();
+	auto it = stringPrefs.find(key);
+	return it != stringPrefs.end() ? it->second : defaultVal;
+}
+
 void set_pref(std::string key, bool val) {
+	initPrefs();
 	boolPrefs[key] = val;
 }
 
 void set_pref(std::string key, int val) {
+	initPrefs();
 	intPrefs[key] = val;
 }
 
 void set_pref(std::string key, double val) {
+	initPrefs();
 	doublePrefs[key] = val;
+}
+
+void set_pref(std::string key, std::string val) {
+	initPrefs();
+	stringPrefs[key] = val;
 }
 
 std::vector<int> get_iarray_pref(std::string key) {
@@ -616,18 +849,19 @@ void append_iarray_pref(std::string key, int value) {
 	iarrayPrefs[key].push_back(value);
 	printf("[PREFS] append_iarray_pref('%s', %d) - new size: %zu\n",
 		key.c_str(), value, iarrayPrefs[key].size());
-
-	// Auto-save ReceivedHelp to localStorage
+	// Auto-save on every update (ReceivedHelp changes frequently; others are handled by sync_prefs)
 	if (key == "ReceivedHelp") {
-		saveReceivedHelp();
+		savePrefsToStorage();
 	}
 }
 
 void clear_pref(std::string key) {
+	initPrefs();
 	boolPrefs.erase(key);
 	intPrefs.erase(key);
 	doublePrefs.erase(key);
 	iarrayPrefs.erase(key);
+	stringPrefs.erase(key);
 
 	if (key == "ReceivedHelp") {
 		EM_ASM({ localStorage.removeItem('BoE_ReceivedHelp'); });
@@ -635,7 +869,8 @@ void clear_pref(std::string key) {
 }
 
 bool sync_prefs() {
-	// Save happens automatically in append_iarray_pref
+	initPrefs(); // must load before saving, or we'd overwrite persisted data with empty maps
+	savePrefsToStorage();
 	return true;
 }
 
@@ -1208,11 +1443,6 @@ void launchDocs(std::string page) {}
 void launchURL(std::string url) {}
 
 // NOTE: cStack, cScrollPane, cTilemap, cConnector now provided by real source files
-
-// Additional preferences function
-std::string get_string_pref(std::string key, std::string defaultVal) {
-	return defaultVal;
-}
 
 // Keyboard modifier flush
 void keymods_t::flushModifiers() {
