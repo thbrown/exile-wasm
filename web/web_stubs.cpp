@@ -47,8 +47,10 @@
 #include "game/boe.fileio.hpp"
 #include "game/boe.actions.hpp"
 #include "game/boe.menus.hpp"
+#include "game/boe.party.hpp"
 #include "tools/cursors.hpp"
 #include "dialogxml/dialogs/strdlog.hpp"
+#include "spell.hpp"
 
 // ============================================================
 // Event queue for bridging JavaScript browser events to C++
@@ -935,13 +937,43 @@ bool has_next_action(std::string expected_type) {
 	return false;
 }
 
+// Queue for menu bar actions dispatched from JS click handlers.
+// Must be processed from the main C++ loop (not directly from JS) because
+// handle_menu_choice is ASYNCIFY-instrumented and cannot be called while
+// the main loop is sleeping (ASYNCIFY "in flight" assertion).
+static std::queue<eMenu> g_pending_menu_actions;
+static int g_pending_spell_type = -1;
+static int g_pending_spell_id   = -1;
+// Guard against re-entrant processing (e.g. dialog's own event loop calling pollEvent)
+static bool g_processing_pending = false;
+
 // Event polling function - dequeues from the web event queue
 bool pollEvent(sf::Window& window, sf::Event& event) {
 	static int poll_log_count = 0;
 	static int last_queue_size = -1;
 	int queue_size = g_web_event_queue.size();
 
-	if(g_web_event_queue.empty()) return false;
+	if(g_web_event_queue.empty()) {
+		// Process any pending HTML menu bar actions.
+		// Safe here because we're in the main WASM execution context (not sleeping).
+		if (!g_processing_pending) {
+			if (!g_pending_menu_actions.empty()) {
+				g_processing_pending = true;
+				eMenu action = g_pending_menu_actions.front();
+				g_pending_menu_actions.pop();
+				handle_menu_choice(action);
+				g_processing_pending = false;
+			} else if (g_pending_spell_type >= 0) {
+				g_processing_pending = true;
+				eSkill spellType = (g_pending_spell_type == 0) ? eSkill::MAGE_SPELLS : eSkill::PRIEST_SPELLS;
+				handle_menu_spell(cSpell::fromNum(spellType, g_pending_spell_id));
+				g_pending_spell_type = -1;
+				g_pending_spell_id   = -1;
+				g_processing_pending = false;
+			}
+		}
+		return false;
+	}
 	event = g_web_event_queue.front();
 	g_web_event_queue.pop();
 
@@ -1490,6 +1522,89 @@ int next_action_line() {
 Cursor::Cursor(fs::path path, float hotX, float hotY) {
 	// Stub - would load cursor from file
 }
+
+// ============================================================
+// HTML menu bar exports
+// NOTE: eMenu integer values must match boe.menus.hpp enum order exactly.
+// If the enum changes, update data-action attributes in shell.html and
+// eMenu constants in menu.js to match.
+// ============================================================
+
+// Helper: JSON-escape a spell name (spell names are simple but be safe)
+static std::string jsonEscapeSpellName(const std::string& s) {
+	std::string out;
+	out.reserve(s.size());
+	for (char c : s) {
+		if (c == '"')  out += "\\\"";
+		else if (c == '\\') out += "\\\\";
+		else out += c;
+	}
+	return out;
+}
+
+// Persistent buffer for wasm_get_spell_list_json return value
+static std::string g_spell_json_result;
+
+extern "C" {
+
+// Queue a menu action from a JS click handler.
+// Safe to call while ASYNCIFY is sleeping (does NOT call handle_menu_choice directly).
+// pollEvent() will dequeue and call handle_menu_choice on the next main loop tick.
+EMSCRIPTEN_KEEPALIVE
+void wasm_queue_menu_action(int action) {
+	g_pending_menu_actions.push(static_cast<eMenu>(action));
+}
+
+// Direct call (internal / testing only - NOT called from JS while game loop is sleeping).
+EMSCRIPTEN_KEEPALIVE
+void wasm_menu_action(int action) {
+	handle_menu_choice(static_cast<eMenu>(action));
+}
+
+// Returns JSON array of spells the current PC can cast.
+// type 0 = mage spells, type 1 = priest spells.
+// Returns: '[{"id":N,"level":L,"name":"...","cost":C}, ...]'
+EMSCRIPTEN_KEEPALIVE
+const char* wasm_get_spell_list_json(int type) {
+	eSkill spellType = (type == 0) ? eSkill::MAGE_SPELLS : eSkill::PRIEST_SPELLS;
+	g_spell_json_result = "[";
+	bool first = true;
+	for (int i = 0; i < 62; i++) {
+		eSpell spell = cSpell::fromNum(spellType, i);
+		if (pc_can_cast_spell(univ.current_pc(), spell)) {
+			if (!first) g_spell_json_result += ",";
+			first = false;
+			const cSpell& sp = *spell;
+			g_spell_json_result += "{\"id\":";
+			g_spell_json_result += std::to_string(i);
+			g_spell_json_result += ",\"level\":";
+			g_spell_json_result += std::to_string(sp.level);
+			g_spell_json_result += ",\"name\":\"";
+			g_spell_json_result += jsonEscapeSpellName(sp.name());
+			g_spell_json_result += "\",\"cost\":";
+			g_spell_json_result += std::to_string(sp.cost);
+			g_spell_json_result += "}";
+		}
+	}
+	g_spell_json_result += "]";
+	return g_spell_json_result.c_str();
+}
+
+// Queue a spell cast from a JS click handler (same ASYNCIFY reason as above).
+EMSCRIPTEN_KEEPALIVE
+void wasm_queue_spell_cast(int type, int spellId) {
+	g_pending_spell_type = type;
+	g_pending_spell_id   = spellId;
+}
+
+// Direct call (internal / testing only).
+EMSCRIPTEN_KEEPALIVE
+void wasm_cast_spell(int type, int spellId) {
+	eSkill spellType = (type == 0) ? eSkill::MAGE_SPELLS : eSkill::PRIEST_SPELLS;
+	handle_menu_spell(cSpell::fromNum(spellType, spellId));
+}
+
+} // extern "C" for menu bar exports
 
 // zlib functions (gzstream needs these)
 extern "C" {

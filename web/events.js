@@ -44,6 +44,9 @@
     }
   }
 
+  // Expose handleLoadGame globally so menu.js can call it
+  window.handleLoadGame = handleLoadGame;
+
   // Wait for the Module to be ready
   function initEvents() {
     var canvas = Module.canvas;

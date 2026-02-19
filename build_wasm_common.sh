@@ -144,7 +144,7 @@ INCLUDES=(
 EMCC_BASE_FLAGS=(
     "-sWASM=1"
     "-sALLOW_MEMORY_GROWTH=1"
-    "-sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_push_mouse_event\",\"_push_key_event\",\"_set_dialog_result\",\"_sync_save_to_indexeddb\",\"_save_party_to_autosave\",\"_wasm_load_from_path\"]"
+    "-sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_push_mouse_event\",\"_push_key_event\",\"_set_dialog_result\",\"_sync_save_to_indexeddb\",\"_save_party_to_autosave\",\"_wasm_load_from_path\",\"_wasm_menu_action\",\"_wasm_queue_menu_action\",\"_wasm_get_spell_list_json\",\"_wasm_cast_spell\",\"_wasm_queue_spell_cast\"]"
     "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\"]"
     "-sNO_EXIT_RUNTIME=1"
     "-sSTRICT=0"
@@ -177,6 +177,7 @@ do_post_build() {
     cp "$WEB_DIR/savemanager.js" "$BUILD_DIR/savemanager.js"
     cp "$WEB_DIR/filedialog.js"  "$BUILD_DIR/filedialog.js"
     cp "$WEB_DIR/filedialog.css" "$BUILD_DIR/filedialog.css"
+    cp "$WEB_DIR/menu.js"        "$BUILD_DIR/menu.js"
 
     mkdir -p "$BUILD_DIR/rsrc/cursors"
     cp rsrc/cursors/*.gif "$BUILD_DIR/rsrc/cursors/"

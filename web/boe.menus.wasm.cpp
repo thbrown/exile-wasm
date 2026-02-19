@@ -1,20 +1,25 @@
 /*
  * boe.menus.wasm.cpp
- * Minimal menu implementation for WASM builds
- * Creates menu event listener without visual menubar
+ * Menu implementation for WASM builds.
+ * Creates a keyboard-shortcut event listener and notifies the HTML menu bar
+ * (web/menu.js / shell.html) of game-state changes via EM_ASM.
  */
 
 #include "boe.menu.hpp"
 #include "boe.menus.hpp"
+#include "boe.consts.hpp"
 #include "boe.graphics.hpp"
 #include "universe/universe.hpp"
 #include "scenario/item.hpp"
+#include <emscripten.h>
 #include <memory>
 #include <unordered_map>
 #include <iostream>
 
 extern std::unordered_map<std::string, std::shared_ptr<iEventListener>> event_listeners;
 extern cUniverse univ;
+extern eGameMode overall_mode;
+extern bool party_in_memory;
 
 std::shared_ptr<OpenBoEMenu> menu_ptr;
 
@@ -29,7 +34,12 @@ void init_menubar() {
 }
 
 void menu_activate() {
-	// No-op in WASM (no visual menu)
+	// Notify the HTML menu bar to enable/disable menus based on game state
+	EM_ASM_({
+		if (typeof window.gameMenu !== 'undefined') {
+			window.gameMenu.updateState($0 !== 0, $1 !== 0);
+		}
+	}, (int)(overall_mode == MODE_STARTUP), (int)party_in_memory);
 }
 
 void update_item_menu(eMenu which, const cItem& item) {
@@ -39,6 +49,12 @@ void update_item_menu(eMenu which, const cItem& item) {
 void update_spell_menus() {
 	if(menu_ptr)
 		menu_ptr->update_spell_menus();
+	// Notify the HTML menu bar to rebuild spell dropdown items
+	EM_ASM({
+		if (typeof window.gameMenu !== 'undefined') {
+			window.gameMenu.refreshSpellMenus();
+		}
+	});
 }
 
 void update_monsters_menu() {

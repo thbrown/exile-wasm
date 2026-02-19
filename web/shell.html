@@ -14,8 +14,7 @@
     }
     body {
       display: flex;
-      justify-content: center;
-      align-items: center;
+      flex-direction: column;
     }
     #canvas {
       border: 0;
@@ -27,7 +26,7 @@
     /* Zoom controls */
     #zoom-controls {
       position: fixed;
-      top: 12px;
+      top: 38px;
       right: 12px;
       display: flex;
       gap: 8px;
@@ -126,6 +125,110 @@
       font-size: 14px;
     }
     #crash-box button:hover { background: #555; }
+
+    /* ---- HTML Menu Bar ---- */
+    #canvas-area {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #game-menu-bar {
+      width: 100%;
+      height: 26px;
+      background: #2a2a2a;
+      border-bottom: 1px solid #444;
+      display: flex;
+      align-items: stretch;
+      font-family: sans-serif;
+      font-size: 13px;
+      color: #ddd;
+      user-select: none;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+    .menu-item {
+      padding: 0 10px;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+    .menu-item:hover,
+    .menu-item.open {
+      background: #4a4a6a;
+    }
+    .menu-item.menu-disabled {
+      color: #666;
+      cursor: default;
+    }
+    .menu-item.menu-disabled:hover {
+      background: none;
+    }
+    .dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      min-width: 220px;
+      z-index: 200;
+      padding: 3px 0;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.5);
+      list-style: none;
+      margin: 0;
+    }
+    .menu-item.open .dropdown {
+      display: block;
+    }
+    .dropdown li {
+      list-style: none;
+      padding: 5px 20px 5px 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+    .dropdown li:hover:not(.disabled):not(.spell-level-header):not(.separator) {
+      background: #4a4a6a;
+    }
+    .dropdown li.disabled {
+      color: #666;
+      cursor: default;
+    }
+    .dropdown li.disabled:hover {
+      background: none;
+    }
+    .dropdown li span {
+      color: #888;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .dropdown .separator {
+      border-top: 1px solid #444;
+      margin: 3px 0;
+      padding: 0;
+      cursor: default;
+      height: 0;
+    }
+    .dropdown .spell-level-header {
+      color: #999;
+      font-size: 11px;
+      padding: 4px 10px 2px;
+      cursor: default;
+      background: #1e1e1e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-top: 1px solid #333;
+    }
+    .spell-cost {
+      color: #888;
+      font-size: 11px;
+    }
   </style>
 </head>
 <body>
@@ -172,7 +275,89 @@
     <div id="zoom-level">100%</div>
     <button id="zoom-in" title="Zoom In (+)">+</button>
   </div>
-  <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+  <nav id="game-menu-bar">
+      <!-- File menu -->
+      <div class="menu-item" id="menu-file">File
+        <ul class="dropdown">
+          <li data-action="4">New Game <span>Ctrl-N</span></li>
+          <li data-action="file-open">Open Game <span>Ctrl-O</span></li>
+          <li class="separator"></li>
+          <li data-action="6" class="disabled">Abort</li>
+          <li data-action="7" class="disabled">Save Game <span>Ctrl-S</span></li>
+          <li data-action="8" class="disabled">Save As... <span>Ctrl-Shift-S</span></li>
+          <li class="separator"></li>
+          <li data-action="2">Preferences</li>
+        </ul>
+      </div>
+      <!-- Options menu (disabled until in-game) -->
+      <div class="menu-item menu-disabled" id="menu-options">Options
+        <ul class="dropdown">
+          <li data-action="9">Pick New PC Graphic</li>
+          <li data-action="10">Pick New PC Name</li>
+          <li data-action="11">Create New PC</li>
+          <li data-action="12">Delete PC</li>
+          <li class="separator"></li>
+          <li data-action="13">See Talking Notes</li>
+          <li data-action="14">See Encounter Notes</li>
+          <li data-action="15">See Overall Party Stats</li>
+          <li data-action="16">See Journal</li>
+        </ul>
+      </div>
+      <!-- Actions menu (disabled until in-game) -->
+      <div class="menu-item menu-disabled" id="menu-actions">Actions
+        <ul class="dropdown">
+          <li data-action="17">Do Alchemy <span>Ctrl-A</span></li>
+          <li data-action="18">Wait 80 Moves <span>Ctrl-W</span></li>
+          <li data-action="19">Display AutoMap <span>A</span></li>
+        </ul>
+      </div>
+      <!-- Monsters menu (disabled until in-game, dynamically populated) -->
+      <div class="menu-item menu-disabled" id="menu-monsters">Monsters
+        <ul class="dropdown" id="monsters-dropdown">
+          <!-- dynamically populated by update_monsters_menu -->
+        </ul>
+      </div>
+      <!-- Cast Mage menu (disabled until in-game, dynamically populated) -->
+      <div class="menu-item menu-disabled" id="menu-cast-mage">Cast Mage
+        <ul class="dropdown" id="cast-mage-dropdown">
+          <li data-action="34">About this menu</li>
+        </ul>
+      </div>
+      <!-- Cast Priest menu (disabled until in-game, dynamically populated) -->
+      <div class="menu-item menu-disabled" id="menu-cast-priest">Cast Priest
+        <ul class="dropdown" id="cast-priest-dropdown">
+          <li data-action="35">About this menu</li>
+        </ul>
+      </div>
+      <!-- Library menu (always available) -->
+      <div class="menu-item" id="menu-library">Library
+        <ul class="dropdown">
+          <li data-action="20">Mage Spells</li>
+          <li data-action="21">Priest Spells</li>
+          <li data-action="22">Skill Info</li>
+          <li data-action="23">Alchemy/Poison</li>
+          <li data-action="24">Tip of the Day</li>
+          <li data-action="25">Show Introductory Dialog</li>
+        </ul>
+      </div>
+      <!-- Help menu (always available) -->
+      <div class="menu-item" id="menu-help">Help
+        <ul class="dropdown">
+          <li data-action="26">Index <span>F1</span></li>
+          <li data-action="1">About Blades of Exile</li>
+          <li class="separator"></li>
+          <li data-action="27">Outdoor Commands</li>
+          <li data-action="28">Town Commands</li>
+          <li data-action="29">Combat Commands</li>
+          <li data-action="30">Magic Barrier Help</li>
+          <li data-action="31">Hints, Bugs and Comments</li>
+          <li data-action="32">Spell Casting Help</li>
+        </ul>
+      </div>
+    </nav>
+  <div id="canvas-area">
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+  </div>
 
   <div id="crash-overlay">
     <div id="crash-box">
@@ -320,6 +505,7 @@
   <script type="text/javascript" src="savemanager.js"></script>
   <script type="text/javascript" src="filedialog.js"></script>
   <script type="text/javascript" src="events.js"></script>
+  <script type="text/javascript" src="menu.js"></script>
   {{{ SCRIPT }}}
 </body>
 </html>
