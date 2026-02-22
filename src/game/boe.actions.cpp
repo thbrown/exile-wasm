@@ -1639,9 +1639,6 @@ bool handle_action(const sf::Event& event, cFramerateLimiter& fps_limiter) {
 				break;
 				
 			case TOOLBAR_SCROLL: case TOOLBAR_MAP:
-#ifdef __EMSCRIPTEN__
-				EM_ASM(console.log("MAP/SCROLL button hit - calling display_map()"));
-#endif
 				display_map();
 				// do not call advance_time
 				return false;

@@ -1764,9 +1764,6 @@ void update_everything() {
 
 void redraw_everything() {
 	redraw_screen(REFRESH_ALL);
-	#ifdef __EMSCRIPTEN__
-	if(map_visible) EM_ASM(console.log("redraw_everything: map_visible=true"));
-	#endif
 	if(map_visible) draw_map(false);
 }
 

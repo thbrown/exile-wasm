@@ -162,13 +162,21 @@ void frame_rect(sf::RenderTarget& target, rectangle rect, sf::Color colour) {
 }
 
 void fill_roundrect(sf::RenderTarget& target, rectangle rect, int rad, sf::Color colour) {
+#ifdef __EMSCRIPTEN__
+	fill_rect(target, rect, colour);
+#else
 	RoundRectShape fill(sf::Vector2f(rect.width(), rect.height()), rad);
 	fill_shape(target, fill, rect.left, rect.top, colour);
+#endif
 }
 
 void frame_roundrect(sf::RenderTarget& target, rectangle rect, int rad, sf::Color colour) {
+#ifdef __EMSCRIPTEN__
+	frame_rect(target, rect, colour);
+#else
 	RoundRectShape frame(sf::Vector2f(rect.width(), rect.height()), rad);
 	frame_shape(target, frame, rect.left, rect.top, colour);
+#endif
 }
 
 void fill_circle(sf::RenderTarget& target, rectangle rect, sf::Color colour) {
