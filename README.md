@@ -5,7 +5,7 @@ This is a WebAssembly fork of [Open Blades of Exile](https://github.com/calref/c
 the open-source release of Spiderweb Software's classic RPG creator.
 The goal is to make the game playable in a modern browser with no installation required.
 
-**Play in Browser:** *(GitHub Pages URL — fill in after deploying)*
+**Play in Browser:** https://thbrown.github.io/exile3-wasm/
 
 ---
 
