@@ -2,19 +2,19 @@
 
 ## Prerequisites
 
-1. **Emscripten SDK** installed at `/d/gitRepos/emsdk`:
+1. **Emscripten SDK 5.0.0** cloned somewhere on your machine:
    ```bash
-   cd /d/gitRepos
    git clone https://github.com/emscripten-core/emsdk.git
    cd emsdk
    ./emsdk install 5.0.0
    ./emsdk activate 5.0.0
    ```
+   Then set `EMSDK_ROOT` in `build_wasm_common.sh` (line 9) to the path where you cloned it.
    The build scripts reference the SDK directly (no need to `source emsdk_env.sh`).
 
 2. **Python 3** for running a local test server.
 
-3. **Run from the repo root** - all build scripts must be run from `D:/gitRepos/cboe/`.
+3. **Run from the repo root** - all build scripts must be run from the `cboe/` directory.
 
 ---
 

@@ -232,7 +232,7 @@
 
 			FloatRect getLocalBounds() const {
 				// Rough estimate: 10 pixels per character
-				return FloatRect(0, 0, static_cast<float>(string_.length() * characterSize_ * 0.6f), static_cast<float>(characterSize_ * 1.3f));
+				return FloatRect(0, 0, static_cast<float>(string_.length() * characterSize_ * 0.65f), static_cast<float>(characterSize_ * 1.3f));
 			}
 			FloatRect getGlobalBounds() const {
 				FloatRect local = getLocalBounds();

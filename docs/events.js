@@ -35,7 +35,14 @@
       const memfsPath = "/temp/Saves/" + filename;
       console.log("[JS] Calling C++ to load from:", memfsPath);
 
-      Module.ccall("wasm_load_from_path", null, ["string"], [memfsPath]);
+      // Show overlay and yield so browser can repaint before blocking C++ call
+      window.showGameLoading('Loading saved game...');
+      await new Promise(resolve => setTimeout(resolve, 50));
+      try {
+        Module.ccall("wasm_load_from_path", null, ["string"], [memfsPath]);
+      } finally {
+        window.hideGameLoading();
+      }
 
       console.log("[JS] Load complete!");
     } catch (err) {
@@ -43,6 +50,9 @@
       alert("Failed to load game: " + err.message);
     }
   }
+
+  // Expose handleLoadGame globally so menu.js can call it
+  window.handleLoadGame = handleLoadGame;
 
   // Wait for the Module to be ready
   function initEvents() {

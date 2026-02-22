@@ -6,7 +6,7 @@
 # -------------------------------------------------------
 # Tool paths
 # -------------------------------------------------------
-EMSDK_ROOT="/d/gitRepos/emsdk"
+EMSDK_ROOT="/d/gitRepos/emsdk"  # <-- edit this to match your local emsdk clone path
 PYTHON_EXE="$EMSDK_ROOT/python/3.13.3_64bit/python.exe"
 EMCC="$EMSDK_ROOT/upstream/emscripten/emcc.py"
 SOURCE_DIR="src"
