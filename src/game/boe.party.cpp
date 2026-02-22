@@ -160,6 +160,10 @@ void put_party_in_scen(std::string scen_name, bool force, bool allow_unpacked) {
 		}
 	}
 	set_cursor(watch_curs);
+#ifdef __EMSCRIPTEN__
+	EM_ASM({ window.showGameLoading('Loading scenario...'); });
+	emscripten_sleep(50); // Yield so overlay paints before blocking
+#endif
 	if(!load_scenario(path, univ.scenario))
 		return;
 	
@@ -216,6 +220,9 @@ void put_party_in_scen(std::string scen_name, bool force, bool allow_unpacked) {
 	std::cout << "put_party_in_scen: calling redraw_screen()..." << std::endl;
 	redraw_screen(REFRESH_ALL);
 	std::cout << "put_party_in_scen: redraw_screen() done" << std::endl;
+#ifdef __EMSCRIPTEN__
+	EM_ASM({ window.hideGameLoading(); });
+#endif
 	set_stat_window(ITEM_WIN_PC1);
 	adjust_spell_menus();
 	adjust_monst_menu();

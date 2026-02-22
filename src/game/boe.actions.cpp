@@ -1639,6 +1639,9 @@ bool handle_action(const sf::Event& event, cFramerateLimiter& fps_limiter) {
 				break;
 				
 			case TOOLBAR_SCROLL: case TOOLBAR_MAP:
+#ifdef __EMSCRIPTEN__
+				EM_ASM(console.log("MAP/SCROLL button hit - calling display_map()"));
+#endif
 				display_map();
 				// do not call advance_time
 				return false;
@@ -1667,8 +1670,13 @@ bool handle_action(const sf::Event& event, cFramerateLimiter& fps_limiter) {
 				break;
 				
 			case TOOLBAR_LOAD:
-				if(overall_mode == MODE_OUTDOORS)
+				if(overall_mode == MODE_OUTDOORS) {
+#ifdef __EMSCRIPTEN__
+					EM_ASM({ window.handleLoadGame(); });
+#else
 					do_load();
+#endif
+				}
 				break;
 				
 			case TOOLBAR_SHOOT:

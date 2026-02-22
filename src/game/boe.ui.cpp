@@ -62,6 +62,14 @@ eToolbarButton cToolbar::button_hit(sf::RenderWindow& win, location click, cFram
 	if(click.in(total_rect)) {
 		for(int i = 0; i < toolbar.size(); i++) {
 			if(click.in(toolbar[i].bounds)) {
+#ifdef __EMSCRIPTEN__
+				// In WASM, return immediately on press - the blocking wait-for-release
+				// loop below is not safe with ASYNCIFY when called from within the
+				// event handler chain.
+				play_sound(37, time_in_ticks(5));
+				redraw_screen(REFRESH_NONE);
+				return toolbar[i].btn;
+#else
 				sf::Event e;
 				bool done = false, clicked = false;
 				win.setActive();
@@ -92,6 +100,7 @@ eToolbarButton cToolbar::button_hit(sf::RenderWindow& win, location click, cFram
 				redraw_screen(REFRESH_NONE);
 				if(clicked) return toolbar[i].btn;
 				return TOOLBAR_CANCEL;
+#endif
 			}
 		}
 	}

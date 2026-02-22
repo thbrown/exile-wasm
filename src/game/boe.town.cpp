@@ -1316,6 +1316,22 @@ void clear_map() {
 
 void draw_map(bool need_refresh) {
 	if(!map_visible) return;
+	#ifdef __EMSCRIPTEN__
+	{
+		int ox = mini_map().getDrawOffsetX();
+		int oy = mini_map().getDrawOffsetY();
+		EM_ASM_({ console.log("draw_map: need_refresh=" + $0 + " offset=(" + $1 + "," + $2 + ")"); }, (int)need_refresh, ox, oy);
+		// Draw a bright magenta border so we can see the map overlay area
+		EM_ASM_({
+			var ctx = Module.drawContexts['main'];
+			if(ctx) {
+				ctx.strokeStyle = 'magenta';
+				ctx.lineWidth = 3;
+				ctx.strokeRect($0, $1, 296, 277);
+			}
+		}, ox, oy);
+	}
+	#endif
 	pic_num_t pic;
 	rectangle the_rect,map_world_rect = {0,0,384,384};
 	location where;
@@ -1576,6 +1592,10 @@ void display_map() {
 		record_action("display_map", "");
 	}
 
+	#ifdef __EMSCRIPTEN__
+	EM_ASM(console.log("display_map: called"));
+	#endif
+
 	if(!prime_time()) {
 		ASB("Map: " + FINISH_FIRST);
 		print_buf();
@@ -1588,7 +1608,9 @@ void display_map() {
 		return;
 	}
 
+#ifndef __EMSCRIPTEN__
 	give_help(62,0);
+#endif
 	
 	rectangle the_rect;
 	rectangle	dlogpicrect = {6,6,42,42};
@@ -1599,6 +1621,11 @@ void display_map() {
 	#ifdef __EMSCRIPTEN__
 	// Initialize map position from preferences
 	init_map_position();
+	{
+		int ox = mini_map().getDrawOffsetX();
+		int oy = mini_map().getDrawOffsetY();
+		EM_ASM_({ console.log("display_map: opening map at offset " + $0 + "," + $1); }, ox, oy);
+	}
 	#endif
 
 	draw_map(true);

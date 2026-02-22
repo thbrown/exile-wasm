@@ -64,7 +64,12 @@ void handle_startup_button_click(eStartButton btn, eKeyMod mods) {
 	draw_start_button(btn,0);
 	switch(btn) {
 		case STARTBTN_LOAD:
+#ifdef __EMSCRIPTEN__
+			// WASM: Let JavaScript handle load (avoids ASYNCIFY nesting + shows overlay)
+			EM_ASM({ window.handleLoadGame(); });
+#else
 			do_load();
+#endif
 			break;
 			
 		case STARTBTN_NEW:

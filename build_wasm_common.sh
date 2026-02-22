@@ -166,34 +166,27 @@ EMCC_BASE_FLAGS=(
 )
 
 # -------------------------------------------------------
-# Post-build steps (call after successful compile)
-# Usage: do_post_build <BUILD_DIR> <OUTPUT_NAME>
+# Copy web assets to BUILD_DIR (idempotent, safe to call without recompiling WASM)
+# Usage: copy_web_assets <BUILD_DIR> <HTML_FILE>
+# HTML_FILE is just the filename, e.g. "boe.html" or "index.html"
 # -------------------------------------------------------
-do_post_build() {
+copy_web_assets() {
     local BUILD_DIR="$1"
-    local OUTPUT_NAME="$2"  # e.g. "boe" (without extension)
+    local HTML_FILE="$2"
 
-    cp "$WEB_DIR/events.js"      "$BUILD_DIR/events.js"
-    cp "$WEB_DIR/savemanager.js" "$BUILD_DIR/savemanager.js"
-    cp "$WEB_DIR/filedialog.js"  "$BUILD_DIR/filedialog.js"
-    cp "$WEB_DIR/filedialog.css" "$BUILD_DIR/filedialog.css"
-    cp "$WEB_DIR/menu.js"        "$BUILD_DIR/menu.js"
+    cp "$WEB_DIR/events.js"           "$BUILD_DIR/events.js"
+    cp "$WEB_DIR/savemanager.js"      "$BUILD_DIR/savemanager.js"
+    cp "$WEB_DIR/filedialog.js"       "$BUILD_DIR/filedialog.js"
+    cp "$WEB_DIR/filedialog.css"      "$BUILD_DIR/filedialog.css"
+    cp "$WEB_DIR/menu.js"             "$BUILD_DIR/menu.js"
+    cp "$WEB_DIR/loading-overlay.js"  "$BUILD_DIR/loading-overlay.js"
 
     mkdir -p "$BUILD_DIR/rsrc/cursors"
     cp rsrc/cursors/*.gif "$BUILD_DIR/rsrc/cursors/"
 
-    # Replace auto-loading script tag with deferred splash screen loader
-    # Match both verbose (-O0) and minified (-O3) script tag formats
-    sed -E -i "s|<script[^>]*src=[\"']?${OUTPUT_NAME}\.js[\"']?[^>]*></script>|<script>var wasmScriptUrl = \"${OUTPUT_NAME}.js\";</script>|" \
-        "$BUILD_DIR/${OUTPUT_NAME}.html"
-
-    echo "Copied web assets and cursors to $BUILD_DIR"
-    echo "Modified HTML to enable splash screen with on-demand loading"
-    echo ""
-    echo "Files generated:"
-    ls -lh "$BUILD_DIR/${OUTPUT_NAME}."{wasm,js,html} \
-           "$BUILD_DIR/events.js" \
-           "$BUILD_DIR/savemanager.js" \
-           "$BUILD_DIR/filedialog.js" \
-           "$BUILD_DIR/filedialog.css"
+    # Inject loading-overlay.js before </body> (idempotent)
+    if ! grep -q 'loading-overlay.js' "$BUILD_DIR/$HTML_FILE"; then
+        sed -i 's|</body>|<script type="text/javascript" src="loading-overlay.js"></script>\n</body>|' \
+            "$BUILD_DIR/$HTML_FILE"
+    fi
 }

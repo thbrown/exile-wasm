@@ -1,296 +1,355 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Blades of Exile</title>
-  <link rel="stylesheet" href="filedialog.css">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%;
-      background: #111;
-      overflow: hidden;
-    }
-    body {
-      display: flex;
-      flex-direction: column;
-    }
-    #canvas {
-      border: 0;
-      background-color: black;
-      display: block;
-      transform-origin: center center;
-      transition: transform 0.2s ease;
-    }
-    /* Zoom controls */
-    #zoom-controls {
-      position: fixed;
-      top: 38px;
-      right: 12px;
-      display: flex;
-      gap: 8px;
-      z-index: 50;
-    }
-    #zoom-controls button {
-      width: 36px;
-      height: 36px;
-      background: rgba(0, 0, 0, 0.7);
-      color: #eee;
-      border: 1px solid #555;
-      border-radius: 6px;
-      font-size: 20px;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      user-select: none;
-    }
-    #zoom-controls button:hover {
-      background: rgba(30, 30, 30, 0.9);
-      border-color: #777;
-    }
-    #zoom-controls button:active {
-      background: rgba(50, 50, 50, 0.9);
-    }
-    #zoom-level {
-      background: rgba(0, 0, 0, 0.7);
-      color: #ccc;
-      border: 1px solid #555;
-      border-radius: 6px;
-      padding: 0 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      font-family: sans-serif;
-      min-width: 50px;
-    }
-    #loading {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: #111;
-      color: #ccc;
-      font-family: sans-serif;
-      font-size: 1.4em;
-      z-index: 100;
-    }
-    /* Crash dialog */
-    #crash-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-      font-family: sans-serif;
-      color: #eee;
-    }
-    #crash-overlay.visible { display: flex; }
-    #crash-box {
-      background: #222;
-      border: 1px solid #555;
-      border-radius: 8px;
-      padding: 24px;
-      max-width: 600px;
-      width: 90%;
-    }
-    #crash-box h2 { margin-bottom: 12px; color: #f66; }
-    #crash-box p  { margin-bottom: 12px; }
-    #crash-box textarea {
-      width: 100%;
-      height: 160px;
-      background: #111;
-      color: #ccc;
-      border: 1px solid #444;
-      border-radius: 4px;
-      padding: 8px;
-      font-family: monospace;
-      font-size: 12px;
-      resize: vertical;
-    }
-    #crash-box button {
-      margin-top: 12px;
-      padding: 8px 24px;
-      background: #444;
-      color: #eee;
-      border: 1px solid #666;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    #crash-box button:hover { background: #555; }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blades of Exile</title>
+    <link rel="stylesheet" href="filedialog.css" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #111;
+        overflow: hidden;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      #canvas {
+        border: 0;
+        background-color: black;
+        display: block;
+        transform-origin: center center;
+        transition: transform 0.2s ease;
+        image-rendering: pixelated;
+      }
+      /* Zoom controls */
+      #zoom-controls {
+        position: fixed;
+        top: 38px;
+        right: 12px;
+        display: flex;
+        gap: 8px;
+        z-index: 50;
+      }
+      #zoom-controls button {
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #eee;
+        border: 1px solid #555;
+        border-radius: 6px;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+      }
+      #zoom-controls button:hover {
+        background: rgba(30, 30, 30, 0.9);
+        border-color: #777;
+      }
+      #zoom-controls button:active {
+        background: rgba(50, 50, 50, 0.9);
+      }
+      #zoom-level {
+        background: rgba(0, 0, 0, 0.7);
+        color: #ccc;
+        border: 1px solid #555;
+        border-radius: 6px;
+        padding: 0 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-family: sans-serif;
+        min-width: 50px;
+      }
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #111;
+        color: #ccc;
+        font-family: sans-serif;
+        font-size: 1.4em;
+        z-index: 100;
+      }
+      /* Crash dialog */
+      #crash-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        font-family: sans-serif;
+        color: #eee;
+      }
+      #crash-overlay.visible {
+        display: flex;
+      }
+      #crash-box {
+        background: #222;
+        border: 1px solid #555;
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 600px;
+        width: 90%;
+      }
+      #crash-box h2 {
+        margin-bottom: 12px;
+        color: #f66;
+      }
+      #crash-box p {
+        margin-bottom: 12px;
+      }
+      #crash-box textarea {
+        width: 100%;
+        height: 160px;
+        background: #111;
+        color: #ccc;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 8px;
+        font-family: monospace;
+        font-size: 12px;
+        resize: vertical;
+      }
+      #crash-box button {
+        margin-top: 12px;
+        padding: 8px 24px;
+        background: #444;
+        color: #eee;
+        border: 1px solid #666;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      #crash-box button:hover {
+        background: #555;
+      }
 
-    /* ---- HTML Menu Bar ---- */
-    #canvas-area {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    #game-menu-bar {
-      width: 100%;
-      height: 26px;
-      background: #2a2a2a;
-      border-bottom: 1px solid #444;
-      display: flex;
-      align-items: stretch;
-      font-family: sans-serif;
-      font-size: 13px;
-      color: #ddd;
-      user-select: none;
-      flex-shrink: 0;
-      position: relative;
-      z-index: 10;
-    }
-    .menu-item {
-      padding: 0 10px;
-      cursor: pointer;
-      position: relative;
-      display: flex;
-      align-items: center;
-      white-space: nowrap;
-    }
-    .menu-item:hover,
-    .menu-item.open {
-      background: #4a4a6a;
-    }
-    .menu-item.menu-disabled {
-      color: #666;
-      cursor: default;
-    }
-    .menu-item.menu-disabled:hover {
-      background: none;
-    }
-    .dropdown {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: #2a2a2a;
-      border: 1px solid #555;
-      min-width: 220px;
-      z-index: 200;
-      padding: 3px 0;
-      box-shadow: 2px 2px 6px rgba(0,0,0,0.5);
-      list-style: none;
-      margin: 0;
-    }
-    .menu-item.open .dropdown {
-      display: block;
-    }
-    .dropdown li {
-      list-style: none;
-      padding: 5px 20px 5px 14px;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 20px;
-    }
-    .dropdown li:hover:not(.disabled):not(.spell-level-header):not(.separator) {
-      background: #4a4a6a;
-    }
-    .dropdown li.disabled {
-      color: #666;
-      cursor: default;
-    }
-    .dropdown li.disabled:hover {
-      background: none;
-    }
-    .dropdown li span {
-      color: #888;
-      font-size: 11px;
-      white-space: nowrap;
-    }
-    .dropdown .separator {
-      border-top: 1px solid #444;
-      margin: 3px 0;
-      padding: 0;
-      cursor: default;
-      height: 0;
-    }
-    .dropdown .spell-level-header {
-      color: #999;
-      font-size: 11px;
-      padding: 4px 10px 2px;
-      cursor: default;
-      background: #1e1e1e;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-top: 1px solid #333;
-    }
-    .spell-cost {
-      color: #888;
-      font-size: 11px;
-    }
-  </style>
-</head>
-<body>
-  <!-- Splash screen - shown before starting game -->
-  <div id="splash-screen" style="
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: #111;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: #eee;
-    font-family: sans-serif;
-    text-align: center;
-    padding: 40px;
-    z-index: 1000;
-  ">
-    <h1 style="font-size: 2.5em; margin-bottom: 20px; color: #f9f9f9;">Blades of Exile</h1>
-    <p style="font-size: 1.2em; margin-bottom: 10px; max-width: 600px;">A classic RPG adventure from 1997, now running in your browser!</p>
-    <p style="font-size: 1em; color: #aaa; margin-bottom: 30px; max-width: 600px;">
-      Once loaded, the game runs entirely in your browser.
-    </p>
-    <button id="start-button" style="
-      padding: 15px 40px;
-      font-size: 1.3em;
-      background: linear-gradient(180deg, #4a6b8a 0%, #2d4a63 100%);
-      color: #fff;
-      border: 2px solid #5a7b9a;
-      border-radius: 8px;
-      cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-      transition: all 0.2s ease;
-    " onmouseover="this.style.background='linear-gradient(180deg, #5a7b9a 0%, #3d5a73 100%)'"
-       onmouseout="this.style.background='linear-gradient(180deg, #4a6b8a 0%, #2d4a63 100%)'">
-      Start Game
-    </button>
-    <p id="splash-status" style="font-size: 0.9em; color: #888; margin-top: 20px;"></p>
-  </div>
+      /* ---- HTML Menu Bar ---- */
+      #canvas-area {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      #game-menu-bar {
+        width: 100%;
+        height: 26px;
+        background: #2a2a2a;
+        border-bottom: 1px solid #444;
+        display: flex;
+        align-items: stretch;
+        font-family: sans-serif;
+        font-size: 13px;
+        color: #ddd;
+        user-select: none;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 10;
+      }
+      .menu-item {
+        padding: 0 10px;
+        cursor: pointer;
+        position: relative;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+      }
+      .menu-item:hover,
+      .menu-item.open {
+        background: #4a4a6a;
+      }
+      .menu-item.menu-disabled {
+        color: #666;
+        cursor: default;
+      }
+      .menu-item.menu-disabled:hover {
+        background: none;
+      }
+      .dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background: #2a2a2a;
+        border: 1px solid #555;
+        min-width: 220px;
+        z-index: 200;
+        padding: 3px 0;
+        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+        list-style: none;
+        margin: 0;
+      }
+      .menu-item.open .dropdown {
+        display: block;
+      }
+      .dropdown li {
+        list-style: none;
+        padding: 5px 20px 5px 14px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+      }
+      .dropdown
+        li:hover:not(.disabled):not(.spell-level-header):not(.separator) {
+        background: #4a4a6a;
+      }
+      .dropdown li.disabled {
+        color: #666;
+        cursor: default;
+      }
+      .dropdown li.disabled:hover {
+        background: none;
+      }
+      .dropdown li span {
+        color: #888;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      .dropdown .separator {
+        border-top: 1px solid #444;
+        margin: 3px 0;
+        padding: 0;
+        cursor: default;
+        height: 0;
+      }
+      .dropdown .spell-level-header {
+        color: #999;
+        font-size: 11px;
+        padding: 4px 10px 2px;
+        cursor: default;
+        background: #1e1e1e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-top: 1px solid #333;
+      }
+      .spell-cost {
+        color: #888;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Splash screen - shown before starting game -->
+    <div
+      id="splash-screen"
+      style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #111;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #eee;
+        font-family: sans-serif;
+        text-align: center;
+        padding: 40px;
+        z-index: 1000;
+      "
+    >
+      <h1 style="font-size: 2.5em; margin-bottom: 20px; color: #f9f9f9">
+        Blades of Exile
+      </h1>
+      <p style="font-size: 1.2em; margin-bottom: 10px; max-width: 600px">
+        A classic RPG adventure from 1997, now running in your browser!
+      </p>
+      <p
+        style="
+          font-size: 1em;
+          color: #aaa;
+          margin-bottom: 30px;
+          max-width: 600px;
+        "
+      >
+        Once loaded, the game runs entirely in your browser.
+      </p>
+      <button
+        id="start-button"
+        style="
+          padding: 15px 40px;
+          font-size: 1.3em;
+          background: linear-gradient(180deg, #4a6b8a 0%, #2d4a63 100%);
+          color: #fff;
+          border: 2px solid #5a7b9a;
+          border-radius: 8px;
+          cursor: pointer;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+          transition: all 0.2s ease;
+        "
+        onmouseover="
+          this.style.background =
+            'linear-gradient(180deg, #5a7b9a 0%, #3d5a73 100%)'
+        "
+        onmouseout="
+          this.style.background =
+            'linear-gradient(180deg, #4a6b8a 0%, #2d4a63 100%)'
+        "
+      >
+        Start Game
+      </button>
+      <p
+        id="splash-status"
+        style="font-size: 0.9em; color: #888; margin-top: 20px"
+      ></p>
+    </div>
 
-  <div id="loading">Loading...</div>
-  <div id="zoom-controls">
-    <button id="zoom-out" title="Zoom Out (-)">−</button>
-    <div id="zoom-level">100%</div>
-    <button id="zoom-in" title="Zoom In (+)">+</button>
-  </div>
-  <nav id="game-menu-bar">
+    <div id="loading">Loading...</div>
+    <div id="zoom-controls">
+      <button id="zoom-out" title="Zoom Out (-)">−</button>
+      <div id="zoom-level">100%</div>
+      <button id="zoom-in" title="Zoom In (+)">+</button>
+    </div>
+    <nav id="game-menu-bar">
       <!-- File menu -->
-      <div class="menu-item" id="menu-file">File
+      <div class="menu-item" id="menu-file">
+        File
         <ul class="dropdown">
           <li data-action="4">New Game <span>Ctrl-N</span></li>
           <li data-action="file-open">Open Game <span>Ctrl-O</span></li>
           <li class="separator"></li>
           <li data-action="6" class="disabled">Abort</li>
-          <li data-action="7" class="disabled">Save Game <span>Ctrl-S</span></li>
-          <li data-action="8" class="disabled">Save As... <span>Ctrl-Shift-S</span></li>
+          <li data-action="7" class="disabled">
+            Save Game <span>Ctrl-S</span>
+          </li>
+          <li data-action="8" class="disabled">
+            Save As... <span>Ctrl-Shift-S</span>
+          </li>
           <li class="separator"></li>
           <li data-action="2">Preferences</li>
         </ul>
       </div>
       <!-- Options menu (disabled until in-game) -->
-      <div class="menu-item menu-disabled" id="menu-options">Options
+      <div class="menu-item menu-disabled" id="menu-options">
+        Options
         <ul class="dropdown">
           <li data-action="9">Pick New PC Graphic</li>
           <li data-action="10">Pick New PC Name</li>
@@ -304,7 +363,8 @@
         </ul>
       </div>
       <!-- Actions menu (disabled until in-game) -->
-      <div class="menu-item menu-disabled" id="menu-actions">Actions
+      <div class="menu-item menu-disabled" id="menu-actions">
+        Actions
         <ul class="dropdown">
           <li data-action="17">Do Alchemy <span>Ctrl-A</span></li>
           <li data-action="18">Wait 80 Moves <span>Ctrl-W</span></li>
@@ -312,25 +372,29 @@
         </ul>
       </div>
       <!-- Monsters menu (disabled until in-game, dynamically populated) -->
-      <div class="menu-item menu-disabled" id="menu-monsters">Monsters
+      <div class="menu-item menu-disabled" id="menu-monsters">
+        Monsters
         <ul class="dropdown" id="monsters-dropdown">
           <!-- dynamically populated by update_monsters_menu -->
         </ul>
       </div>
       <!-- Cast Mage menu (disabled until in-game, dynamically populated) -->
-      <div class="menu-item menu-disabled" id="menu-cast-mage">Cast Mage
+      <div class="menu-item menu-disabled" id="menu-cast-mage">
+        Cast Mage
         <ul class="dropdown" id="cast-mage-dropdown">
           <li data-action="34">About this menu</li>
         </ul>
       </div>
       <!-- Cast Priest menu (disabled until in-game, dynamically populated) -->
-      <div class="menu-item menu-disabled" id="menu-cast-priest">Cast Priest
+      <div class="menu-item menu-disabled" id="menu-cast-priest">
+        Cast Priest
         <ul class="dropdown" id="cast-priest-dropdown">
           <li data-action="35">About this menu</li>
         </ul>
       </div>
       <!-- Library menu (always available) -->
-      <div class="menu-item" id="menu-library">Library
+      <div class="menu-item" id="menu-library">
+        Library
         <ul class="dropdown">
           <li data-action="20">Mage Spells</li>
           <li data-action="21">Priest Spells</li>
@@ -341,7 +405,8 @@
         </ul>
       </div>
       <!-- Help menu (always available) -->
-      <div class="menu-item" id="menu-help">Help
+      <div class="menu-item" id="menu-help">
+        Help
         <ul class="dropdown">
           <li data-action="26">Index <span>F1</span></li>
           <li data-action="1">About Blades of Exile</li>
@@ -355,157 +420,184 @@
         </ul>
       </div>
     </nav>
-  <div id="canvas-area">
-    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-  </div>
-
-  <div id="crash-overlay">
-    <div id="crash-box">
-      <h2 id="crash-title">Blades of Exile has encountered an issue</h2>
-      <p id="crash-message"></p>
-      <textarea id="crash-trace" readonly></textarea>
-      <button id="crash-dismiss">Dismiss</button>
+    <div id="canvas-area">
+      <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
     </div>
-  </div>
 
-  <script>
-    // --- Crash dialog ---
-    function showCrashDialog(title, message, stack) {
-      var overlay = document.getElementById('crash-overlay');
-      document.getElementById('crash-title').textContent = title || 'Blades of Exile has encountered an issue';
-      document.getElementById('crash-message').textContent = message || '';
-      document.getElementById('crash-trace').value = (message || '') + '\n\n' + (stack || '');
-      overlay.classList.add('visible');
-    }
-    document.getElementById('crash-dismiss').addEventListener('click', function() {
-      document.getElementById('crash-overlay').classList.remove('visible');
-    });
+    <div id="crash-overlay">
+      <div id="crash-box">
+        <h2 id="crash-title">Blades of Exile has encountered an issue</h2>
+        <p id="crash-message"></p>
+        <textarea id="crash-trace" readonly></textarea>
+        <button id="crash-dismiss">Dismiss</button>
+      </div>
+    </div>
 
-    // --- Zoom controls ---
-    var zoomLevel = 1.0;
-    var zoomStep = 0.1;
-    var zoomMin = 0.5;
-    var zoomMax = 2.0;
-
-    function updateZoom() {
-      var canvas = document.getElementById('canvas');
-      canvas.style.transform = 'scale(' + zoomLevel + ')';
-      document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
-
-      // Save zoom preference
-      try {
-        localStorage.setItem('boe-canvas-zoom', zoomLevel.toString());
-      } catch(e) {}
-    }
-
-    document.getElementById('zoom-in').addEventListener('click', function() {
-      zoomLevel = Math.min(zoomMax, zoomLevel + zoomStep);
-      updateZoom();
-    });
-
-    document.getElementById('zoom-out').addEventListener('click', function() {
-      zoomLevel = Math.max(zoomMin, zoomLevel - zoomStep);
-      updateZoom();
-    });
-
-    // Load saved zoom preference
-    try {
-      var savedZoom = localStorage.getItem('boe-canvas-zoom');
-      if (savedZoom) {
-        zoomLevel = parseFloat(savedZoom);
-        if (isNaN(zoomLevel) || zoomLevel < zoomMin || zoomLevel > zoomMax) {
-          zoomLevel = 1.0;
-        }
-        updateZoom();
+    <script>
+      // --- Crash dialog ---
+      function showCrashDialog(title, message, stack) {
+        var overlay = document.getElementById("crash-overlay");
+        document.getElementById("crash-title").textContent =
+          title || "Blades of Exile has encountered an issue";
+        document.getElementById("crash-message").textContent = message || "";
+        document.getElementById("crash-trace").value =
+          (message || "") + "\n\n" + (stack || "");
+        overlay.classList.add("visible");
       }
-    } catch(e) {}
-
-    // --- Global error handlers ---
-    window.onerror = function(message, source, lineno, colno, error) {
-      var stack = error && error.stack ? error.stack : (source + ':' + lineno + ':' + colno);
-      showCrashDialog('Blades of Exile has encountered an issue', String(message), stack);
-    };
-    window.onunhandledrejection = function(event) {
-      var reason = event.reason;
-      var message = reason instanceof Error ? reason.message : String(reason);
-      var stack = reason instanceof Error ? reason.stack : '';
-      showCrashDialog('Blades of Exile has encountered an issue', message, stack || '');
-    };
-
-    // --- Splash screen and start button ---
-    var gameStarted = false;
-    var startButton = document.getElementById('start-button');
-    var splashStatus = document.getElementById('splash-status');
-
-    // Start button handler - begins download when clicked
-    startButton.addEventListener('click', function() {
-      if (gameStarted) return;
-      gameStarted = true;
-
-      // Disable button and show loading state
-      startButton.disabled = true;
-      startButton.textContent = 'Loading...';
-      startButton.style.opacity = '0.5';
-      splashStatus.textContent = 'Downloading game data...';
-
-      // Resume AudioContext (required by browsers for audio playback)
-      if (Module.audioContext && Module.audioContext.state === 'suspended') {
-        Module.audioContext.resume().then(function() {
-          console.log('AudioContext resumed on start');
+      document
+        .getElementById("crash-dismiss")
+        .addEventListener("click", function () {
+          document.getElementById("crash-overlay").classList.remove("visible");
         });
+
+      // --- Zoom controls ---
+      var zoomLevel = 1.0;
+      var zoomStep = 0.1;
+      var zoomMin = 0.5;
+      var zoomMax = 2.0;
+
+      function updateZoom() {
+        var canvas = document.getElementById("canvas");
+        canvas.style.transform = "scale(" + zoomLevel + ")";
+        document.getElementById("zoom-level").textContent =
+          Math.round(zoomLevel * 100) + "%";
+
+        // Save zoom preference
+        try {
+          localStorage.setItem("boe-canvas-zoom", zoomLevel.toString());
+        } catch (e) {}
       }
 
-      // Load the WASM script (wasmScriptUrl is injected by build script)
-      if (typeof wasmScriptUrl !== 'undefined') {
-        var script = document.createElement('script');
-        script.src = wasmScriptUrl;
-        script.async = true;
-        document.body.appendChild(script);
-        console.log('Started loading WASM module');
-      }
-    });
+      document.getElementById("zoom-in").addEventListener("click", function () {
+        zoomLevel = Math.min(zoomMax, zoomLevel + zoomStep);
+        updateZoom();
+      });
 
-    // --- Module definition ---
-    var Module = {
-      canvas: document.getElementById('canvas'),
-      print: function(text) { console.log(text); },
-      printErr: function(text) { console.error(text); },
-      setStatus: function(text) {
-        if (!text || text === '') {
-          document.getElementById('loading').style.display = 'none';
-          // Game is loaded - hide splash and start
-          document.getElementById('splash-screen').style.display = 'none';
-        } else {
-          document.getElementById('loading').textContent = text;
-          splashStatus.textContent = text;
+      document
+        .getElementById("zoom-out")
+        .addEventListener("click", function () {
+          zoomLevel = Math.max(zoomMin, zoomLevel - zoomStep);
+          updateZoom();
+        });
+
+      // Load saved zoom preference
+      try {
+        var savedZoom = localStorage.getItem("boe-canvas-zoom");
+        if (savedZoom) {
+          zoomLevel = parseFloat(savedZoom);
+          if (isNaN(zoomLevel) || zoomLevel < zoomMin || zoomLevel > zoomMax) {
+            zoomLevel = 1.0;
+          }
+          updateZoom();
         }
-      },
-      monitorRunDependencies: function(left) {
-        if (left === 0) {
-          // Wait for audio to finish loading before hiding splash
-          var checkAudio = setInterval(function() {
-            if (Module.audioLoadCount >= Module.audioTotalCount) {
-              clearInterval(checkAudio);
-              Module.setStatus('');
-              console.log('Audio loading complete, game ready');
-            } else {
-              var audioProgress = Module.audioLoadCount + '/' + Module.audioTotalCount;
-              Module.setStatus('Loading audio... (' + audioProgress + ')');
-            }
-          }, 100);
-        } else {
-          Module.setStatus('Loading... (' + left + ' files remaining)');
+      } catch (e) {}
+
+      // --- Global error handlers ---
+      window.onerror = function (message, source, lineno, colno, error) {
+        var stack =
+          error && error.stack
+            ? error.stack
+            : source + ":" + lineno + ":" + colno;
+        showCrashDialog(
+          "Blades of Exile has encountered an issue",
+          String(message),
+          stack,
+        );
+      };
+      window.onunhandledrejection = function (event) {
+        var reason = event.reason;
+        var message = reason instanceof Error ? reason.message : String(reason);
+        var stack = reason instanceof Error ? reason.stack : "";
+        showCrashDialog(
+          "Blades of Exile has encountered an issue",
+          message,
+          stack || "",
+        );
+      };
+
+      // --- Splash screen and start button ---
+      var gameStarted = false;
+      var startButton = document.getElementById("start-button");
+      var splashStatus = document.getElementById("splash-status");
+
+      // Start button handler - begins download when clicked
+      startButton.addEventListener("click", function () {
+        if (gameStarted) return;
+        gameStarted = true;
+
+        // Disable button and show loading state
+        startButton.disabled = true;
+        startButton.textContent = "Loading...";
+        startButton.style.opacity = "0.5";
+        splashStatus.textContent = "Downloading game data...";
+
+        // Resume AudioContext (required by browsers for audio playback)
+        if (Module.audioContext && Module.audioContext.state === "suspended") {
+          Module.audioContext.resume().then(function () {
+            console.log("AudioContext resumed on start");
+          });
         }
-      },
-      onAbort: function(what) {
-        showCrashDialog('Blades of Exile has aborted', String(what), new Error().stack || '');
-      }
-    };
-  </script>
-  <script type="text/javascript" src="savemanager.js"></script>
-  <script type="text/javascript" src="filedialog.js"></script>
-  <script type="text/javascript" src="events.js"></script>
-  <script type="text/javascript" src="menu.js"></script>
-  {{{ SCRIPT }}}
-</body>
+
+        // Load the WASM script (wasmScriptUrl is injected by build script)
+        if (typeof wasmScriptUrl !== "undefined") {
+          var script = document.createElement("script");
+          script.src = wasmScriptUrl;
+          script.async = true;
+          document.body.appendChild(script);
+          console.log("Started loading WASM module");
+        }
+      });
+
+      // --- Module definition ---
+      var Module = {
+        canvas: document.getElementById("canvas"),
+        print: function (text) {
+          console.log(text);
+        },
+        printErr: function (text) {
+          console.error(text);
+        },
+        setStatus: function (text) {
+          if (!text || text === "") {
+            document.getElementById("loading").style.display = "none";
+            // Game is loaded - hide splash and start
+            document.getElementById("splash-screen").style.display = "none";
+          } else {
+            document.getElementById("loading").textContent = text;
+            splashStatus.textContent = text;
+          }
+        },
+        monitorRunDependencies: function (left) {
+          if (left === 0) {
+            // Wait for audio to finish loading before hiding splash
+            var checkAudio = setInterval(function () {
+              if (Module.audioLoadCount >= Module.audioTotalCount) {
+                clearInterval(checkAudio);
+                Module.setStatus("");
+                console.log("Audio loading complete, game ready");
+              } else {
+                var audioProgress =
+                  Module.audioLoadCount + "/" + Module.audioTotalCount;
+                Module.setStatus("Loading audio... (" + audioProgress + ")");
+              }
+            }, 100);
+          } else {
+            Module.setStatus("Loading... (" + left + " files remaining)");
+          }
+        },
+        onAbort: function (what) {
+          showCrashDialog(
+            "Blades of Exile has aborted",
+            String(what),
+            new Error().stack || "",
+          );
+        },
+      };
+    </script>
+    <script type="text/javascript" src="savemanager.js"></script>
+    <script type="text/javascript" src="filedialog.js"></script>
+    <script type="text/javascript" src="events.js"></script>
+    <script type="text/javascript" src="menu.js"></script>
+    {{{ SCRIPT }}}
+  </body>
 </html>

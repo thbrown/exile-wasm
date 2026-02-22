@@ -1921,9 +1921,16 @@ public:
 
 scen_header_type pick_a_scen() {
 	// build_scen_headers() can be slow.
+#ifdef __EMSCRIPTEN__
+	EM_ASM({ window.showGameLoading('Scanning scenarios...'); });
+	emscripten_sleep(50); // Yield to browser so overlay paints before blocking
+#endif
 	set_cursor(watch_curs);
 	cChooseScenario dlg;
 	restore_cursor();
+#ifdef __EMSCRIPTEN__
+	EM_ASM({ window.hideGameLoading(); });
+#endif
 	return dlg.run();
 }
 

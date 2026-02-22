@@ -1613,9 +1613,15 @@ void queue_fake_event(const sf::Event& event) {
 
 #ifdef __EMSCRIPTEN__
 void init_map_position() {
-	// Load position from preferences and update draw offset
+	// Load position from preferences and update draw offset.
+	// Clamp to valid canvas bounds (800x600 canvas, map window is 296x277).
+	// Desktop prefs may have large screen coordinates that are off-canvas.
+	const int CANVAS_W = 800, CANVAS_H = 600;
+	const int MAP_W = 296, MAP_H = 277;
 	map_pos_x = get_int_pref("MapWindowX", 52);
 	map_pos_y = get_int_pref("MapWindowY", 62);
+	if(map_pos_x < 0 || map_pos_x + MAP_W > CANVAS_W) map_pos_x = 52;
+	if(map_pos_y < 0 || map_pos_y + MAP_H > CANVAS_H) map_pos_y = 62;
 	mini_map().setDrawOffset(map_pos_x, map_pos_y);
 }
 #endif
@@ -1758,6 +1764,9 @@ void update_everything() {
 
 void redraw_everything() {
 	redraw_screen(REFRESH_ALL);
+	#ifdef __EMSCRIPTEN__
+	if(map_visible) EM_ASM(console.log("redraw_everything: map_visible=true"));
+	#endif
 	if(map_visible) draw_map(false);
 }
 
@@ -1800,7 +1809,11 @@ void handle_menu_choice(eMenu item_hit) {
 	switch(item_hit) {
 		case eMenu::NONE: break;
 		case eMenu::FILE_OPEN:
+#ifdef __EMSCRIPTEN__
+			EM_ASM({ window.handleLoadGame(); });
+#else
 			do_load();
+#endif
 			break;
 		case eMenu::FILE_SAVE:
 			do_save();
